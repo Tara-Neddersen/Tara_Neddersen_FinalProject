@@ -29,6 +29,15 @@ The pipeline is designed to be fully reproducible using Docker containers and fo
 - ~2-3 GB disk space for Docker image
 - Internet connection (for first-time Docker image pull)
 
+## Easiest way of running the analysis:
+
+- clone the Dataset (git clone https://github.com/Tara-Neddersen/Tara_Neddersen_FinalProject.git)
+- navigate to the dataset folder (cd Tara_Neddersen_FinalProject)
+- run this command: ./run.sh 0051160
+- you can see the results generated in a folder named "Results" in the same dataset folder.
+
+## If this did not work for any reason you can proceed with the guidance bellow: 
+
 ## Installation
 
 ### Option 1: Using Docker (Recommended)
@@ -36,7 +45,7 @@ The pipeline is designed to be fully reproducible using Docker containers and fo
 ```bash
 # Clone this repository
 git clone https://github.com/Tara-Neddersen/Tara_Neddersen_FinalProject.git
-cd final_project_bios278
+cd Tara_Neddersen_FinalProject
 
 # Build Docker image
 docker build -t brain-extraction:v1.0 .
@@ -293,5 +302,6 @@ For questions or issues:
 ---
 
 **Last Updated**: December 2024
+
 
 
