@@ -1,0 +1,13 @@
+# Brain Extraction Pipeline Requirements
+# Python packages needed for the preprocessing pipeline
+
+# No additional packages needed beyond what's in the base image
+# FSL is provided by the nipreps/fmriprep base image
+# Standard library only: argparse, logging, subprocess, pathlib, json, datetime
+
+# If you need to add packages later, uncomment and add:
+# numpy>=1.20.0
+# nibabel>=3.2.0
+
+# Dev/test dependencies (none required for runtime)
+
