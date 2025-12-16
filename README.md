@@ -35,7 +35,7 @@ The pipeline is designed to be fully reproducible using Docker containers and fo
 
 ```bash
 # Clone this repository
-git clone <your-repo-url>
+git clone https://github.com/Tara-Neddersen/Tara_Neddersen_FinalProject.git
 cd final_project_bios278
 
 # Build Docker image
@@ -293,4 +293,5 @@ For questions or issues:
 ---
 
 **Last Updated**: December 2024
+
 
