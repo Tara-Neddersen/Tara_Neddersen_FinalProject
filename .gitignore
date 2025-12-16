@@ -9,10 +9,10 @@ env/
 .env
 
 # Data files (too large for git)
-data/
-*.nii
-*.nii.gz
-*.json
+# data/
+# *.nii
+# *.nii.gz
+# *.json
 
 # Results (output files)
 results/
