@@ -1,0 +1,54 @@
+# BIOS 278 Final Project Test Dataset
+
+## Overview
+
+This dataset contains sample neuroimaging data for testing and demonstrating 
+reproducible preprocessing pipelines. The data is from the ABIDE dataset 
+(Stanford site) and has been organized according to the BIDS (Brain Imaging 
+Data Structure) standard.
+
+## Dataset Information
+
+- **Source**: ABIDE dataset, Stanford site
+- **Subjects**: 1 (sub-0051160)
+- **Modalities**: T1w anatomical MRI
+- **Format**: BIDS 1.9.0
+- **Purpose**: Educational use for BIOS 278 final project
+
+## Data Structure
+
+```
+sub-0051160/
+└── anat/
+    ├── sub-0051160_T1w.nii.gz    # T1-weighted anatomical image
+    └── sub-0051160_T1w.json      # Metadata sidecar file
+```
+
+## Usage
+
+This dataset is intended for educational purposes in the BIOS 278 course 
+final project. It demonstrates BIDS-compliant data organization for 
+neuroimaging preprocessing pipelines.
+
+The T1w image can be used for preprocessing steps such as:
+- Brain extraction (skull stripping)
+- Bias field correction
+- Image normalization
+
+## Citation
+
+If using this data, please cite the original ABIDE dataset:
+- ABIDE: http://fcon_1000.projects.nitrc.org/indi/abide/
+- Original source: Stanford site from ABIDE I
+
+## License
+
+This data is provided for educational use in the BIOS 278 course at 
+Stanford University.
+
+## Contact
+
+For questions about this dataset, contact:
+Tara Neddersen
+Knowles Lab, Stanford University Department of Neurology
+

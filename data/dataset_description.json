@@ -1,0 +1,18 @@
+{
+    "Name": "BIOS 278 Final Project Test Dataset",
+    "BIDSVersion": "1.9.0",
+    "DatasetType": "raw",
+    "License": "CC0",
+    "Authors": [
+        "Tara Neddersen"
+    ],
+    "Acknowledgments": "ABIDE (http://fcon_1000.projects.nitrc.org/indi/abide/abide_I.html) data from the Stanford site, downloaded from http://fcon_1000.projects.nitrc.org/indi/s3/index.html (/fcp-indi/data/Projects/ABIDE/RawDataBIDS).",
+    "HowToAcknowledge": "Please cite the ABIDE dataset if using this data. See http://fcon_1000.projects.nitrc.org/indi/abide/ for citation information.",
+    "Funding": [
+        "BIOS 278 Course, Stanford University"
+    ],
+    "ReferencesAndLinks": [
+        "http://fcon_1000.projects.nitrc.org/indi/abide/"
+    ],
+    "DatasetDOI": ""
+}
