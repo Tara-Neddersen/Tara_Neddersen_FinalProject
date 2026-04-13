@@ -1,22 +1,24 @@
 #!/usr/bin/env python3
 """Email triage CLI — judgment mode, no rules.
 
-Fetches unread email from Outlook/Exchange via Microsoft Graph, then for each
-message asks Claude — reading Tara's context files — to decide what to do:
+Fetches unread email from Outlook/Exchange via Microsoft Graph, reads Tara's
+context + calendar, and for each message asks Claude to decide what to do:
 
     draft_for_review  - write a reply, save to Outlook Drafts (default)
     flag_urgent       - surface in briefing, Tara handles personally
     fyi_only          - note it, no action needed
     ignore            - don't surface at all
 
-Every decision is logged to `decisions/` so you can give feedback on it
-later via `feedback.py` — that feedback updates your context files and
-the assistant gets smarter.
+Emails we've triaged before but that are STILL unread get flagged in the
+briefing as "you've been avoiding these" so they don't silently rot.
+
+Every decision is logged to decisions/ so you can give feedback via
+feedback.py. Action items accumulate into tasks.json, surviving across runs.
 
 Usage:
-    python triage.py                      # triage, log decisions, save drafts to Outlook
+    python triage.py                      # triage, log decisions, save drafts
     python triage.py --no-drafts          # triage only, no Outlook draft creation
-    python triage.py --dry-run            # no Outlook writes, no decision log
+    python triage.py --dry-run            # no Outlook writes, no state changes
     python triage.py --max 50             # up to 50 unread messages
 """
 from __future__ import annotations
@@ -25,14 +27,16 @@ import argparse
 import json
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from dotenv import load_dotenv
 
+import tasks
 from claude_triage import Triager, TriageResult
 from graph_auth import get_access_token
 from graph_client import EmailMessage, GraphClient
+from history import PriorSighting, load_prior_sightings
 
 PRIORITY_ORDER = {"urgent": 0, "high": 1, "normal": 2, "low": 3, "skip": 4}
 PRIORITY_TAG = {
@@ -42,16 +46,13 @@ PRIORITY_TAG = {
     "low": "[.]",
     "skip": "[x]",
 }
-ACTION_TAG = {
-    "draft_for_review": "DRAFT",
-    "flag_urgent": "FLAG ",
-    "fyi_only": "FYI  ",
-    "ignore": "SKIP ",
-}
 
 ROOT = Path(__file__).parent
 DECISIONS_DIR = ROOT / "decisions"
 REPORTS_DIR = ROOT / "reports"
+
+# An email has been "avoided" if we saw it N days ago and it's still unread.
+AVOIDED_THRESHOLD_DAYS = 2
 
 
 def parse_args() -> argparse.Namespace:
@@ -75,7 +76,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument(
         "--dry-run",
         action="store_true",
-        help="Don't save drafts, don't log decisions. Useful for testing.",
+        help="Don't save drafts, don't log decisions, don't update tasks.",
     )
     p.add_argument(
         "--report",
@@ -87,11 +88,14 @@ def parse_args() -> argparse.Namespace:
 
 
 def triage_one(
-    triager: Triager, email: EmailMessage
+    triager: Triager, graph: GraphClient, email: EmailMessage
 ) -> tuple[EmailMessage, TriageResult | None, str | None]:
-    """Returns (email, result, error)."""
+    """Fetch thread history for this email then triage it."""
     try:
-        result = triager.triage(email)
+        thread = graph.get_conversation_thread(
+            email.conversation_id, exclude_message_id=email.id, limit=15
+        )
+        result = triager.triage(email, thread=thread)
         return email, result, None
     except Exception as e:  # safety net — one bad email shouldn't halt the batch
         return email, None, f"{type(e).__name__}: {e}"
@@ -103,11 +107,10 @@ def log_decision(
     """Persist a decision record so feedback.py can reference it later."""
     DECISIONS_DIR.mkdir(parents=True, exist_ok=True)
     ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-    # Use a tiny prefix of the email id to avoid collisions in bulk runs
     stub = "".join(c for c in email.id[-8:] if c.isalnum())
     path = DECISIONS_DIR / f"{ts}_{stub}.json"
     record = {
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "email": {
             "id": email.id,
             "subject": email.subject,
@@ -132,12 +135,58 @@ def log_decision(
     return path
 
 
+def accumulate_tasks(
+    items: list[tuple[EmailMessage, TriageResult | None, str | None]],
+) -> tuple[list[tasks.Task], int]:
+    """Merge newly-derived action_items into tasks.json. Returns (all_tasks, new_count)."""
+    existing = tasks.load()
+    now_iso = datetime.now(timezone.utc).isoformat()
+    new_count = 0
+    for email, result, err in items:
+        if result is None:
+            continue
+        for action_text in result.action_items:
+            existing, was_new = tasks.add_or_refresh(
+                existing,
+                source_email_id=email.id,
+                source_sender=email.sender_name or email.sender_email,
+                text=action_text,
+                priority=result.priority,
+                now_iso=now_iso,
+            )
+            if was_new:
+                new_count += 1
+    tasks.save(existing)
+    return existing, new_count
+
+
+def find_avoided_emails(
+    current_unread: list[EmailMessage],
+    prior: dict[str, PriorSighting],
+    threshold_days: int = AVOIDED_THRESHOLD_DAYS,
+) -> list[tuple[EmailMessage, PriorSighting]]:
+    """Return (email, prior_sighting) pairs for unread emails we've seen before."""
+    avoided = []
+    for email in current_unread:
+        sighting = prior.get(email.id)
+        if sighting is None:
+            continue
+        if sighting.days_avoided < threshold_days:
+            continue
+        avoided.append((email, sighting))
+    # Worst-avoided first
+    avoided.sort(key=lambda es: -es[1].days_avoided)
+    return avoided
+
+
 def render_briefing(
     items: list[tuple[EmailMessage, TriageResult | None, str | None]],
     drafts_saved: int,
+    avoided: list[tuple[EmailMessage, PriorSighting]],
+    open_tasks: list[tasks.Task],
+    new_task_count: int,
 ) -> str:
     """Morning-briefing style markdown — what she actually reads."""
-    # Group by action so urgent flags are unmissable
     flagged: list = []
     drafted: list = []
     fyi: list = []
@@ -156,7 +205,6 @@ def render_briefing(
         }.get(result.action, drafted)
         bucket.append((email, result))
 
-    # Sort each bucket by priority
     for bucket in (flagged, drafted, fyi):
         bucket.sort(key=lambda er: PRIORITY_ORDER[er[1].priority])
 
@@ -175,6 +223,26 @@ def render_briefing(
         lines.append(f"\n{drafts_saved} draft(s) saved to your Outlook Drafts folder.")
     lines.append("")
 
+    # 1. Avoided emails — top of the briefing so they're unmissable
+    if avoided:
+        lines.append("## You've been avoiding these")
+        lines.append("")
+        lines.append(
+            "_Emails the assistant triaged before that are still sitting "
+            "unread in your inbox. Just deal with one today._"
+        )
+        lines.append("")
+        for email, sighting in avoided:
+            days = sighting.days_avoided
+            tag = PRIORITY_TAG.get(sighting.last_priority, "[ ]")
+            lines.append(
+                f"- {tag} **{days}d** — _{sighting.sender_name}_ — "
+                f"[{email.subject}]({email.web_link}) "
+                f"(seen {sighting.times_seen}×)"
+            )
+        lines.append("")
+
+    # 2. Urgent flags
     if flagged:
         lines.append("## Needs you")
         lines.append("")
@@ -182,19 +250,30 @@ def render_briefing(
             lines.append(_render_email_block(email, r, show_draft=False))
         lines.append("")
 
-    # To-do roll-up: pull action items from everything except ignored
-    todos = []
-    for email, r in drafted + flagged + fyi:
-        for a in r.action_items:
-            todos.append((r.priority, email.sender_name or email.sender_email, a))
-    if todos:
-        todos.sort(key=lambda x: PRIORITY_ORDER[x[0]])
-        lines.append("## To-Do")
+    # 3. Open tasks (persistent across runs)
+    if open_tasks:
+        lines.append("## Open tasks")
         lines.append("")
-        for priority, sender, action in todos:
-            lines.append(f"- {PRIORITY_TAG[priority]} **{sender}** — {action}")
+        if new_task_count:
+            lines.append(f"_{new_task_count} new this run._")
+            lines.append("")
+        for t in open_tasks[:20]:  # cap so the briefing stays readable
+            tag = PRIORITY_TAG.get(t.priority, "[ ]")
+            age = f"{t.age_days}d" if t.age_days > 0 else "new"
+            seen = f" ({t.times_seen}×)" if t.times_seen > 1 else ""
+            lines.append(
+                f"- {tag} `{t.id}` {age}{seen} · **{t.source_sender}** — {t.text}"
+            )
+        if len(open_tasks) > 20:
+            lines.append(f"- _...and {len(open_tasks) - 20} more in tasks.json_")
+        lines.append("")
+        lines.append(
+            "_Mark done: `python feedback.py --done <id>`  ·  "
+            "Dismiss: `python feedback.py --dismiss <id>`_"
+        )
         lines.append("")
 
+    # 4. Drafts ready
     if drafted:
         lines.append("## Drafts ready in Outlook")
         lines.append("")
@@ -228,8 +307,8 @@ def render_briefing(
     lines.append("---")
     lines.append("")
     lines.append(
-        "_Give the assistant feedback on any decision:_ "
-        "`python feedback.py`"
+        "_Feedback on any decision:_ `python feedback.py`  ·  "
+        "_Notes that reshape context:_ `python feedback.py --note \"...\"`"
     )
     lines.append("")
     return "\n".join(lines)
@@ -302,15 +381,38 @@ def main() -> int:
         print("No unread messages. Inbox zero!", file=sys.stderr)
         return 0
     print(
-        f"Found {len(emails)} unread. Running triage with Claude...",
+        f"Found {len(emails)} unread. Checking history for avoided emails...",
         file=sys.stderr,
     )
+    prior = load_prior_sightings()
+    avoided = find_avoided_emails(emails, prior)
+    if avoided:
+        print(
+            f"  {len(avoided)} email(s) have been unread for {AVOIDED_THRESHOLD_DAYS}+ days",
+            file=sys.stderr,
+        )
 
-    triager = Triager()
+    print("Fetching your calendar (next 7 days)...", file=sys.stderr)
+    try:
+        calendar_events = graph.get_upcoming_events(days_ahead=7)
+        print(
+            f"  calendar loaded: {len(calendar_events)} event(s) in the next week",
+            file=sys.stderr,
+        )
+    except Exception as e:
+        print(
+            f"  could not load calendar ({type(e).__name__}: {e}). "
+            "Continuing without calendar context.",
+            file=sys.stderr,
+        )
+        calendar_events = []
+
+    print("Running triage with Claude...", file=sys.stderr)
+    triager = Triager(calendar_events=calendar_events)
     items: list[tuple[EmailMessage, TriageResult | None, str | None]] = []
     for i, email in enumerate(emails, 1):
         print(f"  [{i}/{len(emails)}] {email.subject[:60]}", file=sys.stderr)
-        items.append(triage_one(triager, email))
+        items.append(triage_one(triager, graph, email))
 
     # Save drafts to Outlook + log decisions
     drafts_saved = 0
@@ -337,8 +439,21 @@ def main() -> int:
             file=sys.stderr,
         )
 
+    # Persistent task accumulation
+    new_task_count = 0
+    open_tasks: list[tasks.Task] = []
+    if not args.dry_run:
+        all_tasks, new_task_count = accumulate_tasks(items)
+        open_tasks = tasks.open_tasks(all_tasks)
+        print(
+            f"Tasks: {len(open_tasks)} open ({new_task_count} new this run).",
+            file=sys.stderr,
+        )
+
     # Briefing
-    briefing = render_briefing(items, drafts_saved)
+    briefing = render_briefing(
+        items, drafts_saved, avoided, open_tasks, new_task_count
+    )
     if args.report:
         report_path = args.report
     else:

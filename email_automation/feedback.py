@@ -20,6 +20,8 @@ from pathlib import Path
 import anthropic
 from dotenv import load_dotenv
 
+import tasks
+
 MODEL = "claude-opus-4-6"
 
 ROOT = Path(__file__).parent
@@ -198,6 +200,47 @@ def note_mode(client: anthropic.Anthropic, note: str) -> None:
     confirm_and_write(update)
 
 
+def mark_task(task_id: str, status: str) -> int:
+    """Mark a task as done or dismissed by ID (short prefix OK)."""
+    all_tasks = tasks.load()
+    matches = [t for t in all_tasks if t.id.startswith(task_id) and t.status == "open"]
+    if not matches:
+        print(f"No open task matched ID '{task_id}'.", file=sys.stderr)
+        return 1
+    if len(matches) > 1:
+        print(
+            f"Ambiguous — {len(matches)} open tasks start with '{task_id}':",
+            file=sys.stderr,
+        )
+        for t in matches:
+            print(f"  {t.id}  ({t.source_sender}) {t.text[:60]}", file=sys.stderr)
+        return 1
+    target = matches[0]
+    if status == "done":
+        tasks.mark_done(all_tasks, target.id)
+        print(f"Marked done: {target.text}")
+    else:
+        tasks.mark_dismissed(all_tasks, target.id)
+        print(f"Dismissed: {target.text}")
+    tasks.save(all_tasks)
+    return 0
+
+
+def list_tasks() -> int:
+    """Print all open tasks, oldest first."""
+    all_tasks = tasks.load()
+    open_list = tasks.open_tasks(all_tasks)
+    if not open_list:
+        print("No open tasks.")
+        return 0
+    print(f"{len(open_list)} open tasks:")
+    for t in open_list:
+        age = f"{t.age_days}d" if t.age_days > 0 else "new"
+        seen = f" ({t.times_seen}×)" if t.times_seen > 1 else ""
+        print(f"  {t.id}  [{t.priority}]  {age}{seen}  {t.source_sender}: {t.text}")
+    return 0
+
+
 def main() -> int:
     load_dotenv()
     parser = argparse.ArgumentParser(description="Teach the assistant from feedback.")
@@ -207,10 +250,35 @@ def main() -> int:
         default=None,
         help="Add a freeform note — Claude decides which context file to update.",
     )
+    parser.add_argument(
+        "--done",
+        type=str,
+        default=None,
+        metavar="TASK_ID",
+        help="Mark a task as done (short ID prefix from the briefing works).",
+    )
+    parser.add_argument(
+        "--dismiss",
+        type=str,
+        default=None,
+        metavar="TASK_ID",
+        help="Dismiss a task without marking it done.",
+    )
+    parser.add_argument(
+        "--tasks",
+        action="store_true",
+        help="List all open tasks and exit.",
+    )
     args = parser.parse_args()
 
-    client = anthropic.Anthropic()
+    if args.tasks:
+        return list_tasks()
+    if args.done:
+        return mark_task(args.done, "done")
+    if args.dismiss:
+        return mark_task(args.dismiss, "dismissed")
 
+    client = anthropic.Anthropic()
     if args.note:
         note_mode(client, args.note)
     else:

@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import html
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import requests
@@ -23,6 +24,31 @@ class EmailMessage:
     web_link: str
 
 
+@dataclass
+class CalendarEvent:
+    subject: str
+    start: str  # ISO8601
+    end: str  # ISO8601
+    is_all_day: bool
+    show_as: str  # free, tentative, busy, oof, workingElsewhere, unknown
+    organizer_name: str
+    organizer_email: str
+    location: str
+    is_online: bool
+    attendees: list[str] = field(default_factory=list)
+
+
+@dataclass
+class ThreadMessage:
+    """A single message inside a conversation thread, stripped for LLM consumption."""
+
+    sender_name: str
+    sender_email: str
+    sent_at: str
+    body_text: str
+    is_from_me: bool
+
+
 class GraphClient:
     def __init__(self, access_token: str) -> None:
         self._token = access_token
@@ -33,6 +59,7 @@ class GraphClient:
                 "Accept": "application/json",
             }
         )
+        self._user_email_cache: str | None = None
 
     def _get(self, path: str, **params: Any) -> dict:
         r = self._session.get(f"{GRAPH_BASE}{path}", params=params, timeout=30)
@@ -91,6 +118,121 @@ class GraphClient:
                     ),
                     conversation_id=m.get("conversationId", "") or "",
                     web_link=m.get("webLink", "") or "",
+                )
+            )
+        return messages
+
+    def get_user_email(self) -> str:
+        """Return the signed-in user's primary email address (cached after first call)."""
+        if self._user_email_cache is None:
+            data = self._get("/me", **{"$select": "mail,userPrincipalName"})
+            self._user_email_cache = (
+                data.get("mail") or data.get("userPrincipalName") or ""
+            ).lower()
+        return self._user_email_cache
+
+    def get_upcoming_events(
+        self, days_ahead: int = 7, max_events: int = 50
+    ) -> list[CalendarEvent]:
+        """Return events on the user's calendar from now through `days_ahead` days.
+
+        Uses calendarView, which expands recurring series into concrete instances
+        — exactly what we want for scheduling context.
+        """
+        now = datetime.now(timezone.utc)
+        end = now + timedelta(days=days_ahead)
+        data = self._get(
+            "/me/calendarView",
+            **{
+                "startDateTime": now.isoformat(),
+                "endDateTime": end.isoformat(),
+                "$orderby": "start/dateTime",
+                "$top": max_events,
+                "$select": (
+                    "subject,start,end,isAllDay,showAs,organizer,"
+                    "location,isOnlineMeeting,attendees"
+                ),
+            },
+        )
+        events: list[CalendarEvent] = []
+        for e in data.get("value", []):
+            organizer = (e.get("organizer") or {}).get("emailAddress") or {}
+            location = (e.get("location") or {}).get("displayName", "") or ""
+            attendees = []
+            for a in e.get("attendees", []) or []:
+                ea = (a.get("emailAddress") or {})
+                name = ea.get("name") or ea.get("address") or ""
+                if name:
+                    attendees.append(name)
+            events.append(
+                CalendarEvent(
+                    subject=e.get("subject", "") or "(no subject)",
+                    start=(e.get("start") or {}).get("dateTime", ""),
+                    end=(e.get("end") or {}).get("dateTime", ""),
+                    is_all_day=bool(e.get("isAllDay")),
+                    show_as=e.get("showAs", "busy") or "busy",
+                    organizer_name=organizer.get("name", "") or "",
+                    organizer_email=organizer.get("address", "") or "",
+                    location=location,
+                    is_online=bool(e.get("isOnlineMeeting")),
+                    attendees=attendees[:8],  # cap to avoid token bloat
+                )
+            )
+        return events
+
+    def get_conversation_thread(
+        self,
+        conversation_id: str,
+        exclude_message_id: str | None = None,
+        limit: int = 15,
+    ) -> list[ThreadMessage]:
+        """Return prior messages in a conversation, oldest first.
+
+        Excludes the one you pass as `exclude_message_id` (typically the email
+        you're currently triaging). Useful for giving the LLM thread context.
+        """
+        if not conversation_id:
+            return []
+        # Graph's $filter for conversationId escapes single quotes by doubling them.
+        safe_cid = conversation_id.replace("'", "''")
+        try:
+            data = self._get(
+                "/me/messages",
+                **{
+                    "$filter": f"conversationId eq '{safe_cid}'",
+                    "$orderby": "receivedDateTime asc",
+                    "$top": limit,
+                    "$select": (
+                        "id,from,receivedDateTime,sentDateTime,body,bodyPreview"
+                    ),
+                },
+            )
+        except requests.HTTPError:
+            # Thread fetch is optional — if it fails we just proceed without it
+            return []
+
+        me = self.get_user_email()
+        messages: list[ThreadMessage] = []
+        for m in data.get("value", []) or []:
+            if exclude_message_id and m.get("id") == exclude_message_id:
+                continue
+            from_field = (m.get("from") or {}).get("emailAddress") or {}
+            sender_email = (from_field.get("address") or "").lower()
+            body = m.get("body") or {}
+            text = _strip_html(
+                body.get("content", ""),
+                content_type=body.get("contentType", "text"),
+            )
+            # Truncate each message — threads can pile up quickly
+            if len(text) > 2000:
+                text = text[:2000] + " [...]"
+            messages.append(
+                ThreadMessage(
+                    sender_name=from_field.get("name", "") or "",
+                    sender_email=sender_email,
+                    sent_at=m.get("sentDateTime") or m.get("receivedDateTime", ""),
+                    body_text=text,
+                    is_from_me=bool(me and sender_email == me),
                 )
             )
         return messages

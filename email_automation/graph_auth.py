@@ -12,7 +12,7 @@ from pathlib import Path
 
 import msal
 
-SCOPES = ["Mail.Read", "Mail.ReadWrite"]
+SCOPES = ["Mail.Read", "Mail.ReadWrite", "Calendars.Read"]
 TOKEN_CACHE_PATH = Path(__file__).parent / ".token_cache.json"
 
 

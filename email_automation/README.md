@@ -1,7 +1,8 @@
 # Email Automation — Stanford Outlook assistant with judgment, not rules
 
 A CLI that reads your unread Stanford email, reasons about each message
-using your personal context (not a rulebook), and either:
+using your personal context (not a rulebook) and your actual calendar,
+and either:
 
 - flags it as something only you should handle,
 - writes a draft reply in your voice and saves it to Outlook Drafts for
@@ -9,12 +10,32 @@ using your personal context (not a rulebook), and either:
 - notes it as FYI, or
 - ignores it as noise.
 
+**Designed for burnt-out use.** The briefing opens with "You've been avoiding
+these" — emails you saw in a previous briefing that are still sitting unread.
+Open tasks accumulate across runs so nothing slips.
+
 Every decision is logged with the assistant's reasoning. You can give
 feedback on any decision — "that was wrong, here's why" — and the
 assistant updates its understanding of you, so it gets better over time.
 
 **Nothing is ever auto-sent.** Drafts go to your Outlook Drafts folder;
 you review and send manually. Trust has to be earned.
+
+## Features
+
+- **Context-based judgment** — prose, not rules. Claude reads `about_me.md`,
+  `current_state.md`, per-person notes — decides like an EA would.
+- **Calendar-aware scheduling** — pulls next 7 days of your Outlook calendar.
+  Drafts for meeting requests actually commit to times you're free, or
+  propose real alternatives.
+- **Thread-aware replies** — sees prior messages in the conversation, so
+  replies don't re-explain things that were already said.
+- **"Avoided" detection** — emails you triaged before that are still unread
+  bubble up to the top of the briefing, with a day-count, until you act.
+- **Persistent task list** — action items survive across runs in `tasks.json`.
+  Deduped automatically. Mark done with `feedback.py --done <id>`.
+- **Feedback loop** — tell the assistant what it got wrong in plain English;
+  it proposes a context-file update; you approve the diff.
 
 ## The design: context, not rules
 
@@ -60,8 +81,13 @@ you need to register an "app" that represents this tool.
    the app's overview page.
 5. **Authentication** → tick **"Allow public client flows"** → Save.
 6. **API permissions** → **Add a permission** → **Microsoft Graph** →
-   **Delegated permissions** → add `Mail.Read` and `Mail.ReadWrite`. Click
-   **Grant admin consent for Stanford University** (or ask your IT admin).
+   **Delegated permissions** → add `Mail.Read`, `Mail.ReadWrite`, and
+   `Calendars.Read`. Click **Grant admin consent for Stanford University**
+   (or ask your IT admin).
+
+   > **Already set up on an earlier version?** Add the `Calendars.Read` scope
+   > now, then delete `.token_cache.json` so the next run prompts you to
+   > re-sign-in with the new scope.
 
 ### 2. Anthropic API key
 
@@ -109,21 +135,32 @@ the refresh token expires (~90 days).
 ## Daily usage
 
 ```bash
-# Triage your inbox, save drafts to Outlook, write a briefing
+# Triage your inbox: calendar + thread context, save drafts, update tasks, write briefing
 ./run.sh
 
 # Triage only, no Outlook writes (for when you want to see the reasoning before trusting)
 ./run.sh --no-drafts
 
+# Totally hands-off test — no drafts, no state changes, no logs
+./run.sh --dry-run
+
 # Process more mail
 ./run.sh --max 100
 
-# Give feedback on a recent decision
-./venv/bin/python feedback.py
+# Give feedback on a recent decision (walks through the last few interactively)
+./.venv/bin/python feedback.py
 
 # Add a freeform note — Claude decides which context file to update
-./venv/bin/python feedback.py --note "Starting this week I'm protecting Monday mornings for writing."
+./.venv/bin/python feedback.py --note "Starting this week I'm protecting Monday mornings for writing."
+
+# Tasks
+./.venv/bin/python feedback.py --tasks              # list all open tasks
+./.venv/bin/python feedback.py --done <task-id>     # mark task done
+./.venv/bin/python feedback.py --dismiss <task-id>  # dismiss task without doing it
 ```
+
+The task IDs shown in the briefing are short prefixes — `feedback.py --done ab`
+is fine if `ab` uniquely identifies an open task.
 
 ## How the feedback loop works
 
@@ -153,16 +190,19 @@ You never write a rule. You just tell it what you meant, and it learns.
 
 | Path | What it does |
 | --- | --- |
-| `triage.py` | Main CLI — fetches unread, runs triage, writes briefing, saves drafts, logs decisions |
-| `feedback.py` | Interactive feedback — updates your context files from plain-English feedback |
+| `triage.py` | Main CLI — fetches unread + calendar, runs triage, writes briefing, saves drafts, updates tasks |
+| `feedback.py` | Feedback CLI — updates context from plain-English feedback, marks tasks done |
 | `graph_auth.py` | MSAL device-code auth + token cache |
-| `graph_client.py` | Microsoft Graph API wrapper |
+| `graph_client.py` | Microsoft Graph API wrapper — mail, calendar, thread, drafts |
 | `claude_triage.py` | Claude reasoning engine — reads context, produces structured decisions |
+| `history.py` | Loads prior decisions to detect emails you've been avoiding |
+| `tasks.py` | Persistent task list with dedup across runs |
 | `context/about_me.md` | Your long-lived self-description (edit this!) |
 | `context/current_state.md` | What's going on for you right now |
 | `context/people/` | Optional per-person notes |
 | `decisions/` | Log of every decision the assistant made (git-ignored) |
 | `reports/` | Generated briefings (git-ignored) |
+| `tasks.json` | Persistent action items (git-ignored) |
 
 ## Cost
 
