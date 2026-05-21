@@ -818,6 +818,7 @@ function renderCourse() {
    AI TOOLS
    ===================================================================== */
 let aiEditingKey = false;
+let aiFormProvider = null;
 
 async function aiGetSource() {
   const fileEl = $("#aiFile");
@@ -826,9 +827,9 @@ async function aiGetSource() {
     const f = fileEl.files[0];
     if (f.type !== "application/pdf" && !/\.pdf$/i.test(f.name))
       throw new Error("Please choose a PDF file, or paste text instead.");
-    return { type: "pdf", data: await fileToBase64(f) };
+    return await extractPdfText(f);
   }
-  if (text) return { type: "text", text };
+  if (text) return text;
   throw new Error("Paste some text or choose a PDF first.");
 }
 
@@ -837,49 +838,64 @@ function renderAI() {
   const cfg = loadAICfg();
 
   if (!cfg.apiKey || aiEditingKey) {
-    const modelOpts = AI_MODELS.map(
-      (m) => `<option value="${m.id}" ${cfg.model === m.id ? "selected" : ""}>${esc(m.label)}</option>`
-    ).join("");
+    const provId = aiFormProvider || cfg.provider || "xai";
+    const prov = AI_PROVIDERS[provId];
+    const provOpts = Object.values(AI_PROVIDERS)
+      .map((p) => `<option value="${p.id}" ${p.id === provId ? "selected" : ""}>${esc(p.label)}</option>`)
+      .join("");
+    const modelVal = cfg.provider === provId && cfg.model ? cfg.model : prov.defaultModel;
+    const modelSuggest = prov.models.map((m) => `<option value="${esc(m)}"></option>`).join("");
     app.innerHTML = `
       <div class="view-head"><h1>AI Tools</h1><p>Turn any chapter, your notes, or a PDF into flashcards, a quiz, or a summary.</p></div>
       <div class="card">
-        <h3 style="margin-top:0">Connect your Anthropic API key</h3>
-        <p class="muted">These features call Claude directly from your browser. Get a key at console.anthropic.com.</p>
+        <h3 style="margin-top:0">Connect an API key</h3>
         <div class="explain" style="background:rgba(251,113,133,0.10);border-color:rgba(251,113,133,0.35)">
-          <strong>Heads up:</strong> your key is stored only in this browser and sent straight to Anthropic. Use this on your own device only, and set a spending limit on the key.
+          <strong>Heads up:</strong> your key is stored only in this browser and sent straight to the provider. Use this on your own device only, and set a spending limit on the key.
         </div>
-        <label class="field" style="margin-top:12px">API key
-          <input type="text" id="aiKey" placeholder="sk-ant-..." value="${esc(cfg.apiKey || "")}" autocomplete="off" />
+        <label class="field" style="margin-top:12px">Provider
+          <select id="aiProvider">${provOpts}</select>
+        </label>
+        <label class="field" style="margin-top:10px">API key
+          <input type="text" id="aiKey" placeholder="${esc(prov.keyHint)}" value="${esc(cfg.apiKey || "")}" autocomplete="off" />
         </label>
         <label class="field" style="margin-top:10px">Model
-          <select id="aiModel">${modelOpts}</select>
+          <input type="text" id="aiModel" list="aiModelList" value="${esc(modelVal)}" autocomplete="off" />
+          <datalist id="aiModelList">${modelSuggest}</datalist>
         </label>
+        <p class="muted" style="margin:6px 0 0">${esc(prov.note)}</p>
         <div class="row" style="margin-top:14px">
           <button class="btn primary" id="aiSave">Save</button>
           ${cfg.apiKey ? '<button class="btn ghost" id="aiCancel">Cancel</button>' : ""}
         </div>
       </div>`;
+    $("#aiProvider").addEventListener("change", (e) => {
+      aiFormProvider = e.target.value;
+      renderAI();
+    });
     $("#aiSave").addEventListener("click", () => {
       const apiKey = $("#aiKey").value.trim();
-      const model = $("#aiModel").value;
+      const model = $("#aiModel").value.trim() || prov.defaultModel;
       if (!apiKey) {
         alert("Paste your API key first.");
         return;
       }
-      saveAICfg({ apiKey, model });
+      saveAICfg({ provider: provId, apiKey, model });
       aiEditingKey = false;
+      aiFormProvider = null;
       renderAI();
     });
     const cancel = $("#aiCancel");
     if (cancel)
       cancel.addEventListener("click", () => {
         aiEditingKey = false;
+        aiFormProvider = null;
         renderAI();
       });
     return;
   }
 
-  const modelLabel = (AI_MODELS.find((m) => m.id === cfg.model) || AI_MODELS[0]).label;
+  const prov = AI_PROVIDERS[cfg.provider] || AI_PROVIDERS.xai;
+  const modelLabel = prov.label + " - " + (cfg.model || prov.defaultModel);
   app.innerHTML = `
     <div class="view-head"><h1>AI Tools</h1><p>Paste a chapter or your notes (or upload a PDF), then generate study material from it.</p></div>
     <div class="card" style="margin-bottom:14px">

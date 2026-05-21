@@ -56,20 +56,30 @@ Two ways:
 
 ## AI Tools setup
 
-The AI features call the Anthropic (Claude) API **directly from your browser**:
+The AI features call a model provider **directly from your browser**. Two
+providers are supported - pick one in the AI Tools settings:
 
-1. Get an API key at [console.anthropic.com](https://console.anthropic.com) and
-   set a spending limit on it.
-2. Open the **AI Tools** tab, paste the key, pick a model (Haiku is the cheapest
-   and fastest; Opus is the most capable), and Save.
+- **xAI (Grok)** - key from [console.x.ai](https://console.x.ai), e.g. `xai-...`
+- **Anthropic (Claude)** - key from [console.anthropic.com](https://console.anthropic.com), e.g. `sk-ant-...`
+
+Steps:
+
+1. Get a key from your chosen provider and set a spending limit on it.
+2. Open the **AI Tools** tab, choose the provider, paste the key, pick/enter a
+   model, and Save.
 3. Paste a chapter/notes or upload a PDF, then click Generate flashcards,
-   Generate quiz, or Summarize.
+   Generate quiz, or Summarize. (PDF text is extracted in your browser, so it
+   works the same for either provider.)
 
 **Privacy/security:** your key is stored only in this browser (localStorage) and
-sent straight to Anthropic - use this on your own device only. The same document
-is sent with prompt caching, so summarizing then making flashcards/quizzes from
-the same text reuses the cache and costs less. Everything except the AI tab works
-fully offline with no key.
+sent straight to the provider - use this on your own device only, and never paste
+a key anywhere public. Everything except the AI tab works fully offline with no
+key.
+
+**Note on browser calls:** Anthropic explicitly allows direct browser requests.
+Some providers block cross-origin browser calls (CORS); if Grok requests fail
+with a network/CORS error, that key can't be used from a pure browser app without
+a small proxy.
 
 ## Customizing content
 
