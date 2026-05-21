@@ -179,6 +179,29 @@ function firstPageNum(s) {
   const m = (s || "").match(/(\d+)/);
   return m ? parseInt(m[1], 10) : null;
 }
+/* leading chapter number from a day's chapter field ("9", "18", "Review") */
+function dayChapterNum(day) {
+  const m = (day.chapter || "").match(/(\d+)/);
+  return m ? m[1] : null;
+}
+/* a "Practice problems" block for days that belong to a chapter with problems */
+function practiceBlock(day, pages) {
+  const ch = dayChapterNum(day);
+  const info = typeof CHAPTER_PROBLEMS !== "undefined" ? CHAPTER_PROBLEMS[ch] : null;
+  if (!info) return "";
+  const pageHint = firstPageNum(pages)
+    ? `Do the boxed PROBLEMs on ${esc(pages)} as you read, then`
+    : "Do";
+  return `
+    <div class="practice">
+      <div class="practice-h">Practice problems</div>
+      <p>${pageHint} the end-of-chapter <strong>Additional Problems</strong> (Ch ${esc(ch)}, p. ${info.additional}). Check your work in the solutions guide.</p>
+      <div class="row">
+        <button class="btn" data-prob="${info.additional}">Open problems</button>
+        <button class="btn primary" data-guide-ch="${esc(ch)}">See solutions</button>
+      </div>
+    </div>`;
+}
 
 /* =====================================================================
    STUDY PLAN
@@ -360,12 +383,17 @@ function toggleDayDetail(row) {
     }</button>
         <button class="btn" data-study-fc="${day.topic}">Study flashcards</button>
         <button class="btn" data-study-quiz="${day.topic}">Take quiz</button>
-      </div>`;
+      </div>
+      ${practiceBlock(day, pages)}`;
   }
   row.after(panel);
 
   const readBtn = $("[data-read]", panel);
   if (readBtn) readBtn.addEventListener("click", () => openReader(parseInt(readBtn.dataset.read, 10)));
+  const probBtn = $("[data-prob]", panel);
+  if (probBtn) probBtn.addEventListener("click", () => openReader(parseInt(probBtn.dataset.prob, 10), "book"));
+  const guideBtn = $("[data-guide-ch]", panel);
+  if (guideBtn) guideBtn.addEventListener("click", () => openGuideForChapter(guideBtn.dataset.guideCh));
 
   const saveBtn = $("[data-save-pages]", panel);
   if (saveBtn)

@@ -1,14 +1,13 @@
 /*
- * In-app textbook reader.
+ * In-app PDF reader for TWO documents:
+ *   - 'book'  : the Jones & Fleming textbook (read assigned pages / problems)
+ *   - 'guide' : the Study Guide / Solutions Manual (see answers)
  *
- * Lets you read the actual Jones & Fleming pages inside the app. You load your
- * own PDF once; it's stored in this browser only (IndexedDB) and is NEVER
- * uploaded or committed anywhere. Each study day's "Read pp. X-Y" button opens
- * the book to those pages.
- *
- * Printed page numbers (from the table of contents) differ from the PDF's
- * physical page numbers by a fixed front-matter offset (40 for the standard
- * file). It's adjustable in the reader if your copy is shifted.
+ * You load each PDF once; they're stored in this browser only (IndexedDB) and
+ * are NEVER uploaded. The textbook's printed page numbers differ from the PDF's
+ * physical pages by a fixed offset (default 40); the guide is navigated by its
+ * own page numbers and you can "pin" each chapter's solutions page so it jumps
+ * straight there next time.
  */
 
 const BOOK_CFG_KEY = "chem121_book_v1";
@@ -22,9 +21,16 @@ function loadBookCfg() {
 function saveBookCfg(c) {
   localStorage.setItem(BOOK_CFG_KEY, JSON.stringify(c));
 }
-function bookOffset() {
+function docOffset(which) {
   const c = loadBookCfg();
+  if (which === "guide") return Number.isFinite(c.guideOffset) ? c.guideOffset : 0;
   return Number.isFinite(c.offset) ? c.offset : 40;
+}
+function setDocOffset(which, val) {
+  const c = loadBookCfg();
+  if (which === "guide") c.guideOffset = val;
+  else c.offset = val;
+  saveBookCfg(c);
 }
 
 /* ---------- IndexedDB (stores the PDF bytes on-device) ---------- */
@@ -59,27 +65,27 @@ function idbGet(key) {
   );
 }
 
-let bookDoc = null;
-async function getBookDoc() {
-  if (bookDoc) return bookDoc;
-  const buf = await idbGet("pdf");
+const docKey = (which) => (which === "guide" ? "guide" : "pdf");
+const docDocs = { book: null, guide: null };
+async function getDoc(which) {
+  if (docDocs[which]) return docDocs[which];
+  const buf = await idbGet(docKey(which));
   if (!buf) return null;
   await ensurePdfJs();
-  bookDoc = await window.pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
-  return bookDoc;
+  docDocs[which] = await window.pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
+  return docDocs[which];
 }
-async function saveBookPdf(file) {
+async function saveDocPdf(which, file) {
   const buf = await file.arrayBuffer();
-  await idbPut("pdf", buf);
-  bookDoc = null; // force reload
-}
-async function hasBook() {
-  return !!(await idbGet("pdf"));
+  await idbPut(docKey(which), buf);
+  docDocs[which] = null; // force reload
 }
 
 /* ---------- reader overlay ---------- */
+let readerWhich = "book";
 let readerPrinted = 1;
 let readerZoom = 1;
+let readerChapter = null; // set when opened for a chapter's solutions
 
 function ensureReaderEl() {
   let el = document.getElementById("reader");
@@ -101,7 +107,7 @@ function ensureReaderEl() {
       <span class="reader-page" id="readerLabel"></span>
       <button class="btn" id="readerNext">Next &rarr;</button>
     </div>
-    <div class="reader-foot" id="readerTools"></div>`;
+    <div class="reader-foot reader-tools" id="readerTools"></div>`;
   document.body.appendChild(el);
   $("#readerClose", el).addEventListener("click", closeReader);
   $("#readerZoomIn", el).addEventListener("click", () => {
@@ -125,48 +131,71 @@ function ensureReaderEl() {
 
 function updateReaderLabel() {
   const lbl = document.getElementById("readerLabel");
-  if (lbl) lbl.textContent = "p. " + readerPrinted;
+  if (lbl) lbl.textContent = (readerWhich === "guide" ? "page " : "p. ") + readerPrinted;
+  const title = document.getElementById("readerTitle");
+  if (title) title.textContent = readerWhich === "guide" ? "Solutions guide" : "Textbook";
   const tools = document.getElementById("readerTools");
-  if (tools)
-    tools.innerHTML = `
-      <span class="muted" style="font-size:.8rem">Page off? nudge:</span>
-      <button class="btn small" id="readerOffMinus">-1</button>
-      <button class="btn small" id="readerOffPlus">+1</button>
-      <span class="spacer"></span>
-      <button class="btn small ghost" id="readerReplace">Replace PDF</button>`;
-  const minus = document.getElementById("readerOffMinus");
-  if (minus)
-    minus.addEventListener("click", () => {
-      saveBookCfg({ offset: bookOffset() - 1 });
+  if (!tools) return;
+  const pinBtn =
+    readerWhich === "guide" && readerChapter
+      ? `<button class="btn small good" id="readerPin">Pin Ch ${esc(readerChapter)} here</button>`
+      : "";
+  tools.innerHTML = `
+    <input type="text" id="readerJump" value="${readerPrinted}" inputmode="numeric" style="width:64px" />
+    <button class="btn small" id="readerGo">Go</button>
+    <span class="muted" style="font-size:.78rem">off?</span>
+    <button class="btn small" id="readerOffMinus">-1</button>
+    <button class="btn small" id="readerOffPlus">+1</button>
+    ${pinBtn}
+    <span class="spacer"></span>
+    <button class="btn small ghost" id="readerReplace">Replace PDF</button>`;
+  $("#readerGo", tools).addEventListener("click", () => {
+    const v = parseInt($("#readerJump", tools).value, 10);
+    if (Number.isFinite(v)) {
+      readerPrinted = Math.max(1, v);
       renderReaderPage();
+    }
+  });
+  $("#readerOffMinus", tools).addEventListener("click", () => {
+    setDocOffset(readerWhich, docOffset(readerWhich) - 1);
+    renderReaderPage();
+  });
+  $("#readerOffPlus", tools).addEventListener("click", () => {
+    setDocOffset(readerWhich, docOffset(readerWhich) + 1);
+    renderReaderPage();
+  });
+  $("#readerReplace", tools).addEventListener("click", () => showReaderLoad(readerWhich));
+  const pin = $("#readerPin", tools);
+  if (pin)
+    pin.addEventListener("click", () => {
+      const c = loadBookCfg();
+      c.guidePages = c.guidePages || {};
+      c.guidePages[readerChapter] = readerPrinted;
+      saveBookCfg(c);
+      pin.textContent = "Pinned!";
     });
-  const plus = document.getElementById("readerOffPlus");
-  if (plus)
-    plus.addEventListener("click", () => {
-      saveBookCfg({ offset: bookOffset() + 1 });
-      renderReaderPage();
-    });
-  const repl = document.getElementById("readerReplace");
-  if (repl) repl.addEventListener("click", showReaderLoad);
 }
 
-function showReaderLoad() {
+function showReaderLoad(which) {
+  readerWhich = which;
   const body = document.getElementById("readerBody");
   if (!body) return;
+  const label = which === "guide" ? "solutions guide" : "textbook";
   body.innerHTML = `
     <div class="reader-load">
-      <h3>Add your textbook</h3>
-      <p class="muted">Pick your Jones &amp; Fleming PDF. It's saved on this device only (in your browser) and is never uploaded.</p>
+      <h3>Add your ${label}</h3>
+      <p class="muted">Pick the ${label} PDF. It's saved on this device only (in your browser) and is never uploaded.</p>
       <input type="file" id="readerFile" accept="application/pdf,.pdf" />
       <p class="muted" id="readerLoadMsg" style="margin-top:10px"></p>
     </div>`;
+  updateReaderLabel();
   $("#readerFile", body).addEventListener("change", async (e) => {
     const f = e.target.files && e.target.files[0];
     if (!f) return;
     const msg = $("#readerLoadMsg", body);
     msg.textContent = "Saving...";
     try {
-      await saveBookPdf(f);
+      await saveDocPdf(which, f);
       msg.textContent = "Saved. Opening...";
       await renderReaderPage();
     } catch (err) {
@@ -180,25 +209,28 @@ async function renderReaderPage() {
   if (!body) return;
   let doc;
   try {
-    doc = await getBookDoc();
+    doc = await getDoc(readerWhich);
   } catch (e) {
     body.innerHTML = `<div class="empty">Could not open the PDF: ${esc(e.message)}</div>`;
     return;
   }
   if (!doc) {
-    showReaderLoad();
+    showReaderLoad(readerWhich);
     return;
   }
-  const pdfPage = readerPrinted + bookOffset();
+  if (readerWhich === "guide") {
+    const c = loadBookCfg();
+    c.lastGuidePage = readerPrinted;
+    saveBookCfg(c);
+  }
+  const pdfPage = readerPrinted + docOffset(readerWhich);
   if (pdfPage < 1 || pdfPage > doc.numPages) {
-    body.innerHTML = `<div class="empty">Page ${readerPrinted} is outside this PDF. Use the nudge buttons to fix the offset.</div>`;
+    body.innerHTML = `<div class="empty">Page ${readerPrinted} is outside this PDF. Use Go or the nudge buttons.</div>`;
     updateReaderLabel();
     return;
   }
   const page = await doc.getPage(pdfPage);
   const vp1 = page.getViewport({ scale: 1 });
-  // CSS width to display the page at, then render at device pixel density so
-  // text is crisp on high-DPI phone screens. Zoom widens it (and scrolls).
   const avail = (body.clientWidth || window.innerWidth || 800) - 24;
   const cssW = Math.max(280, avail * readerZoom);
   const scale = cssW / vp1.width;
@@ -221,20 +253,29 @@ async function renderReaderPage() {
   updateReaderLabel();
 }
 
-async function openReader(printedStart) {
+async function openReader(printedStart, which, chapter) {
   const el = ensureReaderEl();
+  readerWhich = which || "book";
+  readerChapter = chapter || null;
   readerPrinted = printedStart || 1;
   el.classList.remove("hidden");
   document.body.style.overflow = "hidden";
-  document.getElementById("readerBody").innerHTML =
-    '<div class="empty">Loading...</div>';
+  document.getElementById("readerBody").innerHTML = '<div class="empty">Loading...</div>';
   updateReaderLabel();
-  const doc = await getBookDoc().catch(() => null);
+  const doc = await getDoc(readerWhich).catch(() => null);
   if (!doc) {
-    showReaderLoad();
+    showReaderLoad(readerWhich);
     return;
   }
   renderReaderPage();
+}
+
+/* Open the solutions guide for a chapter, jumping to its pinned page if set. */
+function openGuideForChapter(ch) {
+  const c = loadBookCfg();
+  const pinned = (c.guidePages || {})[ch];
+  const page = pinned || c.lastGuidePage || 1;
+  openReader(page, "guide", ch);
 }
 
 function closeReader() {

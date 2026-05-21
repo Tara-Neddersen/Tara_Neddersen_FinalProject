@@ -291,6 +291,16 @@ details.week[open] > summary { border-bottom: 1px solid var(--line); }
 }
 .reader-bar { border-bottom: 1px solid var(--line); }
 .reader-foot { border-top: 1px solid var(--line); justify-content: center; }
+.reader-tools { flex-wrap: wrap; }
+.practice {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(34, 211, 238, 0.07);
+  border: 1px solid rgba(34, 211, 238, 0.28);
+}
+.practice-h { font-weight: 700; color: var(--accent); font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.4px; }
+.practice p { margin: 6px 0 10px; font-size: 0.92rem; }
 .reader-body {
   flex: 1;
   overflow: auto;

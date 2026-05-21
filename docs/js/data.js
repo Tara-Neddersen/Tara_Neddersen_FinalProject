@@ -39,9 +39,9 @@ const COURSE = {
   ],
 };
 
-// First Monday the study plan starts. Set to the current week so studying can
-// begin now and ramp up to the summer final exam on Aug 14, 2026.
-const COURSE_START = "2026-05-18";
+// First Monday the study plan starts. Plan runs from here to the summer final
+// exam on Aug 14, 2026.
+const COURSE_START = "2026-05-25";
 
 /*
  * WEEKLY_PLAN drives the daily Study Plan. Each entry is one week (Mon..Sun);
@@ -153,25 +153,33 @@ const WEEKLY_PLAN = [
     { task: "Synthesis practice (enolate)", pages: "" },
     { task: "Cumulative review (Ch 18-19)", pages: "" },
   ]},
-  { week: 12, topic: "all", chapter: "Review", title: "Course Review", days: [
-    { task: "Course review: spectroscopy & structure (Ch 9)", pages: "" },
-    { task: "Course review: conjugation & aromatic chemistry (Ch 13-15)", pages: "" },
-    { task: "Course review: carbonyl chemistry (Ch 16-17)", pages: "" },
-    { task: "Course review: acyl derivatives & enolates (Ch 18-19)", pages: "" },
-    { task: "Full mixed quiz; drill weak-area flashcards", pages: "" },
-    { task: "Synthesis roadmap practice (all topics)", pages: "" },
-    { task: "Full reaction-library review", pages: "" },
-  ]},
-  { week: 13, topic: "all", chapter: "Review", title: "Finals Week", days: [
+  { week: 12, topic: "all", chapter: "Review", title: "Course Review + Finals Week", days: [
     { task: "Final review: Ch 9, 13, 14 (mixed flashcards + quiz)", pages: "" },
     { task: "Final review: Ch 15, 16, 17 (mixed)", pages: "" },
     { task: "Final review: Ch 18, 19 (mixed)", pages: "" },
-    { task: "Final prep: full mixed quiz, then rest", pages: "" },
+    { task: "Final prep: full mixed quiz + synthesis & reaction-library review", pages: "" },
     { task: "Final Exam", pages: "" },
     "",
     "",
   ]},
 ];
+
+/*
+ * Each chapter's end-of-chapter "Additional Problems" section start page (printed
+ * page in Jones & Fleming, from the table of contents). The matching solutions
+ * are in the Study Guide / Solutions Manual. The app links the day's chapter to
+ * both: open the textbook to the problems, and the guide to the solutions.
+ */
+const CHAPTER_PROBLEMS = {
+  "9": { additional: 430, title: "Spectroscopy" },
+  "13": { additional: 635, title: "Dienes & Conjugation" },
+  "14": { additional: 688, title: "Aromaticity" },
+  "15": { additional: 759, title: "Aromatic Substitution" },
+  "16": { additional: 825, title: "Aldehydes & Ketones" },
+  "17": { additional: 872, title: "Carboxylic Acids" },
+  "18": { additional: 923, title: "Acyl Derivatives" },
+  "19": { additional: 1014, title: "Enols & Enolates" },
+};
 
 const TOPICS = [
   { id: "spectroscopy", title: "Spectroscopy (IR / NMR / MS)", icon: "wave", color: "#6366f1" },
