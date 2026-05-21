@@ -184,22 +184,33 @@ function dayChapterNum(day) {
   const m = (day.chapter || "").match(/(\d+)/);
   return m ? m[1] : null;
 }
+/* {start,end} printed page range from "pp. 368-379" */
+function pageRange(s) {
+  const m = (s || "").match(/(\d+)\s*[-–]\s*(\d+)/);
+  if (m) return { start: +m[1], end: +m[2] };
+  const f = firstPageNum(s);
+  return f ? { start: f, end: f } : null;
+}
 /* a "Practice problems" block for days that belong to a chapter with problems */
 function practiceBlock(day, pages) {
   const ch = dayChapterNum(day);
   const info = typeof CHAPTER_PROBLEMS !== "undefined" ? CHAPTER_PROBLEMS[ch] : null;
   if (!info) return "";
-  const pageHint = firstPageNum(pages)
-    ? `Do the boxed PROBLEMs on ${esc(pages)} as you read, then`
-    : "Do";
+  const range = pageRange(pages);
   return `
     <div class="practice">
       <div class="practice-h">Practice problems</div>
-      <p>${pageHint} the end-of-chapter <strong>Additional Problems</strong> (Ch ${esc(ch)}, p. ${info.additional}). Check your work in the solutions guide.</p>
+      <p>${
+        range
+          ? "Do the boxed PROBLEMs on " + esc(pages) + " as you read, then the"
+          : "Do the"
+      } end-of-chapter <strong>Additional Problems</strong> (Ch ${esc(ch)}, p. ${info.additional}). Check your work in the solutions guide.</p>
       <div class="row">
+        ${range ? `<button class="btn" data-scan="${range.start}-${range.end}">List today's problems</button>` : ""}
         <button class="btn" data-prob="${info.additional}">Open problems</button>
         <button class="btn primary" data-guide-ch="${esc(ch)}">See solutions</button>
       </div>
+      <div class="scan-out" style="margin-top:8px"></div>
     </div>`;
 }
 
@@ -394,6 +405,24 @@ function toggleDayDetail(row) {
   if (probBtn) probBtn.addEventListener("click", () => openReader(parseInt(probBtn.dataset.prob, 10), "book"));
   const guideBtn = $("[data-guide-ch]", panel);
   if (guideBtn) guideBtn.addEventListener("click", () => openGuideForChapter(guideBtn.dataset.guideCh));
+  const scanBtn = $("[data-scan]", panel);
+  if (scanBtn)
+    scanBtn.addEventListener("click", async () => {
+      const out = $(".scan-out", panel);
+      const [s, e] = scanBtn.dataset.scan.split("-").map(Number);
+      out.textContent = "Reading your textbook...";
+      try {
+        const probs = await scanProblemsOnPages(s, e);
+        if (probs === null)
+          out.innerHTML = `<span class="muted">Load your textbook first - tap "Open problems", pick your PDF, then come back.</span>`;
+        else if (!probs.length)
+          out.innerHTML = `<span class="muted">No boxed problems on these pages - do the end-of-chapter set.</span>`;
+        else
+          out.innerHTML = `<strong>Problems on pp. ${s}-${e}:</strong> ${probs.map(esc).join(", ")}`;
+      } catch (err) {
+        out.innerHTML = `<span class="muted">Could not scan: ${esc(err.message)}</span>`;
+      }
+    });
 
   const saveBtn = $("[data-save-pages]", panel);
   if (saveBtn)

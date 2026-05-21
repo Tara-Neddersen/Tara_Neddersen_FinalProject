@@ -278,6 +278,27 @@ function openGuideForChapter(ch) {
   openReader(page, "guide", ch);
 }
 
+/* Scan the loaded textbook for boxed PROBLEM labels on a printed page range.
+   Returns null if the textbook PDF isn't loaded yet, else an array like
+   ["9.1","9.2"]. Runs entirely in the browser on the user's own file. */
+async function scanProblemsOnPages(printedStart, printedEnd) {
+  const doc = await getDoc("book");
+  if (!doc) return null;
+  const off = docOffset("book");
+  const found = [];
+  for (let p = printedStart; p <= printedEnd; p++) {
+    const pdfp = p + off;
+    if (pdfp < 1 || pdfp > doc.numPages) continue;
+    const page = await doc.getPage(pdfp);
+    const tc = await page.getTextContent();
+    const text = tc.items.map((i) => i.str).join(" ");
+    const re = /PROBLEM\s+(\d+\.\d+)/gi;
+    let m;
+    while ((m = re.exec(text))) if (!found.includes(m[1])) found.push(m[1]);
+  }
+  return found;
+}
+
 function closeReader() {
   const el = document.getElementById("reader");
   if (el) el.classList.add("hidden");
