@@ -28,10 +28,14 @@ a branch -> `main` / `/docs`), the app is online at
 
 - **Study Plan** - a day-by-day plan from the first day of class through the
   final exam. Each study day shows what to read (mapped to Jones & Fleming
-  chapters); click a day to see details, **add the exact page numbers**, mark it
-  done, and jump straight into the matching flashcards or quiz. Midterms and the
-  final are marked on their real dates, and the app tracks how many study days
-  you've completed.
+  chapters with exact page ranges); click a day to see details, **Read pp.** to
+  open the textbook to those pages in the app, mark it done, and jump into the
+  matching flashcards or quiz. The final is marked on its real date and the app
+  tracks how many study days you've completed.
+- **Textbook reader** - load your Jones & Fleming PDF once (stored on your
+  device only, never uploaded) and read the assigned pages right in the app.
+  Printed page numbers differ from the PDF's physical pages by a fixed offset
+  (default 40); if your copy is shifted, use the -1 / +1 nudge in the reader.
 - **Flashcards** - ~70 cards across every topic, scheduled with **spaced
   repetition** (Again / Hard / Good / Easy). Each card comes back right before
   you'd forget it; a "due" count shows how many to review. Filter by topic or
