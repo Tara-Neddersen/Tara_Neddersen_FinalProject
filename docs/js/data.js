@@ -81,7 +81,7 @@ const WEEKLY_PLAN = [
     { task: "Quiz: Aldehydes & Ketones (acetals)", pages: "" },
     { task: "Problem Set 3 + weekly review", pages: "" },
   ]},
-  { week: 4, topic: "carbonyl", chapter: "20", title: "Carbohydrates + Imines (Ch 20, 16)", days: [
+  { week: 4, topic: "carbohydrates", chapter: "20", title: "Carbohydrates + Imines (Ch 20, 16)", days: [
     { task: "Read JF §20.2 (carbohydrate structure)", pages: "pp. 1028-1040", ch: "20" },
     { task: "Flashcards/practice: carbohydrates", pages: "" },
     { task: "Read JF §20.4a,c,f,g, 20.6 (glycosidic bonds) [regular term: Midterm 1]", pages: "pp. 1043-1063", ch: "20" },
@@ -135,7 +135,7 @@ const WEEKLY_PLAN = [
     { task: "Quiz: Carboxylic acids & derivatives (amides)", pages: "" },
     { task: "Problem Set 9 + weekly review", pages: "" },
   ]},
-  { week: 10, topic: "all", chapter: "22", title: "Amino Acids & Proteins (Ch 22)", days: [
+  { week: 10, topic: "aminoacids", chapter: "22", title: "Amino Acids & Proteins (Ch 22)", days: [
     { task: "Read JF §22.2a-c (amino acids, polypeptides & proteins)", pages: "pp. 1106-1120", ch: "22" },
     { task: "Flashcards/practice: amino acids & peptides", pages: "" },
     { task: "Amino acids, polypeptides & proteins, cont.", pages: "pp. 1106-1120", ch: "22" },
@@ -181,58 +181,18 @@ const CHAPTER_PROBLEMS = {
 };
 
 const TOPICS = [
-  { id: "spectroscopy", title: "Spectroscopy (IR / NMR / MS)", icon: "wave", color: "#6366f1" },
-  { id: "conjugation", title: "Conjugation, Dienes & Diels-Alder", icon: "chain", color: "#0ea5e9" },
-  { id: "aromaticity", title: "Aromaticity", icon: "ring", color: "#8b5cf6" },
-  { id: "eas", title: "Aromatic Substitution (EAS / NAS)", icon: "ring", color: "#a855f7" },
-  { id: "carbonyl", title: "Aldehydes & Ketones", icon: "carbonyl", color: "#ec4899" },
-  { id: "acids", title: "Carboxylic Acids & Derivatives", icon: "carbonyl", color: "#f43f5e" },
-  { id: "enolate", title: "Enols, Enolates & alpha-Chemistry", icon: "carbonyl", color: "#f59e0b" },
-  { id: "amines", title: "Amines", icon: "atom", color: "#14b8a6" },
+  { id: "acidbase", title: "Acids & Bases (review)", icon: "atom", color: "#84cc16" },
   { id: "subelim", title: "Substitution & Elimination (review)", icon: "atom", color: "#10b981" },
   { id: "stereo", title: "Stereochemistry (review)", icon: "atom", color: "#22c55e" },
-  { id: "acidbase", title: "Acids & Bases (review)", icon: "atom", color: "#84cc16" },
+  { id: "amines", title: "Amines", icon: "atom", color: "#14b8a6" },
+  { id: "carbonyl", title: "Aldehydes & Ketones", icon: "carbonyl", color: "#ec4899" },
+  { id: "carbohydrates", title: "Carbohydrates", icon: "ring", color: "#0ea5e9" },
+  { id: "enolate", title: "Enols, Enolates & alpha-Chemistry", icon: "carbonyl", color: "#f59e0b" },
+  { id: "acids", title: "Carboxylic Acids & Derivatives", icon: "carbonyl", color: "#f43f5e" },
+  { id: "aminoacids", title: "Amino Acids & Proteins", icon: "atom", color: "#8b5cf6" },
 ];
 
 const FLASHCARDS = [
-  // Spectroscopy
-  { topic: "spectroscopy", front: "IR: what does a strong absorption near 1700-1750 cm-1 indicate?", back: "A C=O (carbonyl) stretch. Ketone ~1715, aldehyde ~1725, ester ~1735-1745; conjugation lowers the value." },
-  { topic: "spectroscopy", front: "IR: how do you tell an alcohol O-H from a carboxylic acid O-H?", back: "Alcohol O-H is broad ~3200-3550 cm-1. Carboxylic acid O-H is VERY broad, ~2500-3300 cm-1, overlapping the C-H region." },
-  { topic: "spectroscopy", front: "IR: N-H stretch region and band count?", back: "~3300-3500 cm-1. A primary amine/amide shows two bands; a secondary one shows a single band." },
-  { topic: "spectroscopy", front: "What three pieces of information does a 1H NMR spectrum give?", back: "Chemical shift (electronic environment), integration (relative number of H), and splitting/multiplicity (number of neighboring H via the n+1 rule)." },
-  { topic: "spectroscopy", front: "1H NMR: the n+1 rule?", back: "A signal split by n equivalent neighboring protons appears as n+1 peaks (e.g., 3 neighbors -> quartet)." },
-  { topic: "spectroscopy", front: "1H NMR: approximate chemical shifts?", back: "Alkyl 0.9-1.5; alpha to C=O ~2.1-2.6; H-C-O 3.3-4.5; vinyl 4.5-6.5; aromatic 6.5-8; aldehyde 9-10; COOH 10-12 ppm." },
-  { topic: "spectroscopy", front: "Mass spec: what do M+2 isotope peaks tell you?", back: "M+2 about equal to M+ -> bromine present. M+2 about 1/3 of M+ -> chlorine present." },
-  { topic: "spectroscopy", front: "Degrees of unsaturation formula?", back: "DoU = (2C + 2 + N - H - X) / 2. Each ring or pi bond counts as one." },
-
-  // Conjugation
-  { topic: "conjugation", front: "What makes a system conjugated?", back: "A continuous chain of overlapping p orbitals - alternating pi bonds, or a p orbital (lone pair, radical, or empty orbital) on an atom adjacent to a pi bond - allowing electron delocalization." },
-  { topic: "conjugation", front: "1,2- vs 1,4-addition of HBr to 1,3-butadiene?", back: "Low temperature favors the 1,2 (kinetic) product; high temperature favors the 1,4 (thermodynamic, more substituted alkene) product." },
-  { topic: "conjugation", front: "The Diels-Alder reaction?", back: "A [4+2] cycloaddition: a conjugated diene (in the s-cis conformation) + a dienophile -> cyclohexene. Concerted, stereospecific, suprafacial." },
-  { topic: "conjugation", front: "What makes a good dienophile and a good diene?", back: "Dienophile: electron-poor alkene/alkyne with an EWG (C=O, CN, NO2). Diene: electron-rich (EDG) and able to reach the s-cis conformation." },
-  { topic: "conjugation", front: "The endo rule in Diels-Alder?", back: "The endo product (the dienophile's EWG points toward/under the diene pi system) is the kinetically favored stereochemistry." },
-  { topic: "conjugation", front: "Why is an allylic cation stabilized?", back: "Resonance delocalizes the positive charge over two carbons." },
-  { topic: "conjugation", front: "How does conjugation affect UV-Vis absorption?", back: "More conjugation -> smaller HOMO-LUMO gap -> absorption at longer wavelength (lambda-max shifts toward red)." },
-
-  // Aromaticity
-  { topic: "aromaticity", front: "Huckel's rule: the four criteria for aromaticity?", back: "Cyclic, planar, fully conjugated (continuous loop of p orbitals), and 4n+2 pi electrons (2, 6, 10, ...)." },
-  { topic: "aromaticity", front: "What is an antiaromatic compound?", back: "Cyclic, planar, conjugated with 4n pi electrons (4, 8, ...). Strongly destabilized - molecules distort out of plane to avoid it." },
-  { topic: "aromaticity", front: "Why is benzene unusually stable?", back: "Six delocalized pi electrons make it aromatic; the resonance (aromatic) stabilization energy is roughly 36 kcal/mol." },
-  { topic: "aromaticity", front: "Pyridine: is it aromatic, and where is the N lone pair?", back: "Aromatic. The nitrogen lone pair sits in an sp2 orbital in the ring plane (NOT part of the pi system), so pyridine is basic." },
-  { topic: "aromaticity", front: "Pyrrole: is it aromatic, and where is the N lone pair?", back: "Aromatic. The nitrogen lone pair IS part of the pi system (it supplies 2 of the 6 pi electrons), so pyrrole is a very weak base." },
-  { topic: "aromaticity", front: "Cyclopentadienyl: anion vs cation aromaticity?", back: "The anion is aromatic (6 pi electrons); the cation is antiaromatic (4 pi electrons)." },
-  { topic: "aromaticity", front: "What is the tropylium cation?", back: "The cycloheptatrienyl cation - aromatic (6 pi electrons) and therefore an unusually stable carbocation." },
-
-  // EAS / NAS
-  { topic: "eas", front: "General mechanism of electrophilic aromatic substitution (EAS)?", back: "Generate the electrophile -> the arene pi system attacks E+ forming a resonance-stabilized arenium (sigma) ion -> loss of H+ rearomatizes the ring." },
-  { topic: "eas", front: "The five classic EAS reactions?", back: "Halogenation (X2/FeX3), nitration (HNO3/H2SO4), sulfonation (SO3/H2SO4), Friedel-Crafts alkylation (RX/AlCl3), Friedel-Crafts acylation (RCOCl/AlCl3)." },
-  { topic: "eas", front: "Which groups are activating, ortho/para-directors?", back: "Electron donors: -NH2, -NHR, -OH, -OR, -NHC(=O)R, alkyl, and aryl groups." },
-  { topic: "eas", front: "Which groups are deactivating, meta-directors?", back: "Electron withdrawers: -NO2, -NR3+, -CN, -SO3H, -CHO/-C(=O)R, -COOH/-COOR, -CF3." },
-  { topic: "eas", front: "How do halogen substituents direct in EAS?", back: "They are deactivating (inductive withdrawal) but ortho/para-directing (lone-pair resonance donation)." },
-  { topic: "eas", front: "Limitations of Friedel-Crafts alkylation?", back: "Carbocation rearrangements, polyalkylation, and failure on strongly deactivated rings or aniline." },
-  { topic: "eas", front: "How do you install a straight-chain alkyl group on benzene?", back: "Use Friedel-Crafts acylation, then reduce the ketone (Clemmensen, Zn(Hg)/HCl, or Wolff-Kishner) - this avoids rearrangement." },
-  { topic: "eas", front: "What does nucleophilic aromatic substitution (SNAr) require?", back: "A strong EWG ortho/para to a leaving group; it proceeds through a Meisenheimer complex." },
-
   // Carbonyl
   { topic: "carbonyl", front: "Why are aldehydes more reactive than ketones toward nucleophiles?", back: "Less steric hindrance and less electron donation, so the carbonyl carbon is more electrophilic (one R group vs two)." },
   { topic: "carbonyl", front: "What does a Grignard reagent + carbonyl give?", back: "After aqueous workup, an alcohol: formaldehyde -> 1 deg, other aldehydes -> 2 deg, ketones -> 3 deg. (Run anhydrous.)" },
@@ -288,29 +248,33 @@ const FLASHCARDS = [
   { topic: "acidbase", front: "What does a lower pKa mean?", back: "A stronger acid (pKa = -log Ka). Acid-base equilibria favor forming the weaker acid and weaker base." },
   { topic: "acidbase", front: "Factors that stabilize a conjugate base (ARIO)?", back: "Atom (size & electronegativity), Resonance, Induction, Orbital (s-character). A more stable conjugate base means a stronger acid." },
   { topic: "acidbase", front: "Rank acidity: alkane, alcohol, water, carboxylic acid, terminal alkyne.", back: "Carboxylic acid (~4) > water (~15.7) ~ alcohol (~16) > terminal alkyne (~25) > alkane (~50)." },
+
+  // Carbohydrates
+  { topic: "carbohydrates", front: "Aldose vs ketose?", back: "Monosaccharides (polyhydroxy carbonyls). An aldose has an aldehyde (e.g., glucose); a ketose has a ketone (e.g., fructose)." },
+  { topic: "carbohydrates", front: "How is a sugar assigned D or L?", back: "By the configuration of the highest-numbered (bottom) stereocenter in the Fischer projection: OH on the right = D, on the left = L. Most natural sugars are D." },
+  { topic: "carbohydrates", front: "What is the anomeric carbon?", back: "The former carbonyl carbon, now a hemiacetal carbon after the sugar cyclizes. It bears the new -OH and is the center of mutarotation." },
+  { topic: "carbohydrates", front: "Alpha vs beta anomer (D-sugar, Haworth)?", back: "Anomers differ only at the anomeric carbon. Alpha = anomeric OH points down (trans to the CH2OH); beta = OH points up (cis to CH2OH)." },
+  { topic: "carbohydrates", front: "What is mutarotation?", back: "Interconversion of the alpha and beta anomers through the open-chain form, which slowly changes the optical rotation until equilibrium." },
+  { topic: "carbohydrates", front: "How does a monosaccharide cyclize?", back: "Intramolecular hemiacetal formation: an -OH (C5 for an aldohexose -> 6-membered pyranose) attacks the carbonyl carbon." },
+  { topic: "carbohydrates", front: "Pyranose vs furanose?", back: "Pyranose = 6-membered cyclic sugar; furanose = 5-membered cyclic sugar." },
+  { topic: "carbohydrates", front: "What is a glycosidic bond?", back: "The acetal linkage from the anomeric carbon to another group/sugar (an O-glycoside), made from the hemiacetal + alcohol under acid; it locks the anomeric configuration (no more mutarotation)." },
+  { topic: "carbohydrates", front: "Reducing vs non-reducing sugar?", back: "A reducing sugar has a free anomeric -OH (hemiacetal that can open to an aldehyde and be oxidized, e.g., Tollens/Benedict). A full acetal (glycoside) is non-reducing." },
+  { topic: "carbohydrates", front: "Epimers?", back: "Diastereomeric sugars that differ in configuration at exactly one stereocenter (e.g., glucose and galactose are C4 epimers)." },
+
+  // Amino acids & proteins
+  { topic: "aminoacids", front: "General structure of an alpha-amino acid?", back: "A central (alpha) carbon bonded to an amino group (-NH2), a carboxyl group (-COOH), an H, and a side chain (R)." },
+  { topic: "aminoacids", front: "Are amino acids chiral? Which configuration is natural?", back: "Yes - the alpha carbon has four different groups (except glycine, R = H). Natural amino acids are L (S configuration, except cysteine)." },
+  { topic: "aminoacids", front: "What is a zwitterion?", back: "The dipolar form of an amino acid at physiological pH: -COO- and -NH3+ at the same time, with no net charge." },
+  { topic: "aminoacids", front: "What is the isoelectric point (pI)?", back: "The pH at which the amino acid has no net charge (mostly zwitterion); for a simple amino acid it is the average of its two pKa values." },
+  { topic: "aminoacids", front: "What is a peptide bond?", back: "The amide linkage between the carboxyl of one amino acid and the amino group of the next. It is planar with restricted rotation (partial double-bond character)." },
+  { topic: "aminoacids", front: "N-terminus vs C-terminus?", back: "Peptides are written N-terminus (free -NH3+) on the left to C-terminus (free -COO-) on the right." },
+  { topic: "aminoacids", front: "The four levels of protein structure?", back: "Primary (sequence), secondary (alpha-helix / beta-sheet from backbone H-bonds), tertiary (3D fold of one chain), quaternary (assembly of multiple chains)." },
+  { topic: "aminoacids", front: "What stabilizes secondary structure?", back: "Hydrogen bonds between backbone C=O and N-H groups (alpha-helices and beta-sheets)." },
+  { topic: "aminoacids", front: "What is a disulfide bond?", back: "A covalent S-S cross-link from oxidation of two cysteine -SH groups; it stabilizes tertiary/quaternary structure (reduced back by DTT/mercaptoethanol)." },
+  { topic: "aminoacids", front: "Why is glycine special?", back: "Its side chain is just H, so it is achiral and the most conformationally flexible amino acid." },
 ];
 
 const QUIZ = [
-  // Spectroscopy
-  { topic: "spectroscopy", question: "A strong IR absorption near 1715 cm-1 most likely indicates which functional group?", options: ["C=O (carbonyl)", "O-H (alcohol)", "C(triple)C (alkyne)", "C-H bend"], answer: 0, explanation: "Carbonyl C=O stretches appear ~1700-1750 cm-1; a ketone is ~1715." },
-  { topic: "spectroscopy", question: "In 1H NMR, a signal that appears as a triplet has how many equivalent neighboring protons?", options: ["2", "1", "3", "0"], answer: 0, explanation: "By the n+1 rule, a triplet (3 peaks) comes from 2 neighbors." },
-  { topic: "spectroscopy", question: "In a mass spectrum, an M and M+2 peak of nearly equal intensity suggests the presence of:", options: ["Bromine", "Chlorine", "Nitrogen", "Oxygen"], answer: 0, explanation: "Br has two abundant isotopes (79/81) of nearly equal abundance, giving M and M+2 of similar height." },
-
-  // Conjugation
-  { topic: "conjugation", question: "The Diels-Alder reaction is best classified as a:", options: ["[4+2] cycloaddition", "[2+2] cycloaddition", "radical chain reaction", "nucleophilic substitution"], answer: 0, explanation: "It joins a 4-pi-electron diene with a 2-pi-electron dienophile - a [4+2] cycloaddition." },
-  { topic: "conjugation", question: "Which diene conformation is required for the Diels-Alder reaction?", options: ["s-cis", "s-trans", "anti", "gauche"], answer: 0, explanation: "Only the s-cis conformation lets both diene termini reach the dienophile." },
-  { topic: "conjugation", question: "At high temperature, addition of HBr to 1,3-butadiene predominantly gives the:", options: ["1,4 (thermodynamic) product", "1,2 (kinetic) product", "anti-Markovnikov product", "Diels-Alder adduct"], answer: 0, explanation: "High temperature favors the more stable, more substituted 1,4 (thermodynamic) product." },
-
-  // Aromaticity
-  { topic: "aromaticity", question: "By Huckel's rule, an aromatic ring must be cyclic, planar, conjugated, and have:", options: ["4n+2 pi electrons", "4n pi electrons", "an even number of carbons", "only sp3 carbons"], answer: 0, explanation: "Aromatic systems contain 4n+2 (2, 6, 10, ...) pi electrons." },
-  { topic: "aromaticity", question: "Why is pyridine basic at nitrogen while pyrrole is not?", options: ["Pyridine's N lone pair is in an in-plane sp2 orbital; pyrrole's lone pair is part of the aromatic pi system", "Pyridine has more carbons", "Pyrrole is not aromatic", "Pyridine is antiaromatic"], answer: 0, explanation: "Pyrrole must use its N lone pair for aromaticity, so it cannot easily bind a proton; pyridine's lone pair is free." },
-  { topic: "aromaticity", question: "The cyclopentadienyl ANION is aromatic because it has:", options: ["6 pi electrons", "4 pi electrons", "8 pi electrons", "no pi electrons"], answer: 0, explanation: "The anion has 6 pi electrons (4n+2, n=1) and is aromatic; the cation (4 pi e-) is antiaromatic." },
-
-  // EAS
-  { topic: "eas", question: "Which substituent is a meta-director and a deactivator?", options: ["-NO2", "-OCH3", "-CH3", "-NH2"], answer: 0, explanation: "-NO2 is a strong electron-withdrawing group: deactivating and meta-directing." },
-  { topic: "eas", question: "Halogen substituents on benzene are:", options: ["deactivating but ortho/para-directing", "activating and ortho/para-directing", "deactivating and meta-directing", "activating and meta-directing"], answer: 0, explanation: "Halogens withdraw inductively (deactivate) but donate by resonance (o/p-direct)." },
-  { topic: "eas", question: "The best way to put an unrearranged n-propyl group on benzene is to:", options: ["do Friedel-Crafts acylation, then reduce the ketone", "do Friedel-Crafts alkylation with 1-chloropropane", "nitrate, then reduce", "sulfonate the ring"], answer: 0, explanation: "Acylation avoids carbocation rearrangement; reduction (Clemmensen/Wolff-Kishner) gives the straight chain." },
-
   // Carbonyl
   { topic: "carbonyl", question: "Reaction of a ketone with a Grignard reagent followed by aqueous workup gives a:", options: ["3 deg alcohol", "2 deg alcohol", "1 deg alcohol", "carboxylic acid"], answer: 0, explanation: "Adding R to a ketone carbon (already bearing two R groups) gives a tertiary alcohol." },
   { topic: "carbonyl", question: "Which reagent reduces an aldehyde to a 1 deg alcohol but leaves an ester in the same molecule untouched?", options: ["NaBH4", "LiAlH4", "H2 at high pressure over Ni", "HCl"], answer: 0, explanation: "NaBH4 is mild and selective for aldehydes/ketones; LiAlH4 would also reduce the ester." },
@@ -341,19 +305,28 @@ const QUIZ = [
 
   // Acid/base
   { topic: "acidbase", question: "A lower pKa value indicates:", options: ["a stronger acid", "a weaker acid", "a stronger base", "a neutral compound"], answer: 0, explanation: "pKa = -log Ka, so a lower pKa means a larger Ka and a stronger acid." },
+
+  // Carbohydrates
+  { topic: "carbohydrates", question: "An aldose is a monosaccharide that contains:", options: ["an aldehyde group", "a ketone group", "two carbonyls", "an ester"], answer: 0, explanation: "Aldoses have an aldehyde (e.g., glucose); ketoses have a ketone (e.g., fructose)." },
+  { topic: "carbohydrates", question: "Two cyclic forms of a sugar that differ only at the anomeric carbon are:", options: ["anomers", "enantiomers", "epimers", "conformers"], answer: 0, explanation: "Anomers differ only at the anomeric (former carbonyl) carbon; they interconvert by mutarotation." },
+  { topic: "carbohydrates", question: "A glycosidic bond is which functional group?", options: ["an acetal", "a hemiacetal", "an ester", "an ether between two CH2 groups"], answer: 0, explanation: "The anomeric carbon bonded to two oxygens (one to the aglycone) is a full acetal, which is non-reducing." },
+  { topic: "carbohydrates", question: "A reducing sugar must have:", options: ["a free anomeric OH (hemiacetal that can open to an aldehyde)", "a glycosidic acetal", "no carbonyl in any form", "only the furanose form"], answer: 0, explanation: "A free hemiacetal can open to the aldehyde and be oxidized (Tollens/Benedict); a glycoside cannot." },
+
+  // Amino acids & proteins
+  { topic: "aminoacids", question: "At physiological pH, an amino acid exists mainly as:", options: ["a zwitterion (-COO- and -NH3+)", "fully protonated (-COOH, -NH3+)", "fully deprotonated (-COO-, -NH2)", "neutral -COOH / -NH2"], answer: 0, explanation: "Both groups are ionized at once, giving a net-neutral dipolar zwitterion." },
+  { topic: "aminoacids", question: "The peptide bond is best described as:", options: ["a planar amide with restricted rotation", "a freely rotating single bond", "an ester linkage", "a disulfide bridge"], answer: 0, explanation: "Amide resonance gives the C-N partial double-bond character, making the peptide unit planar." },
+  { topic: "aminoacids", question: "The isoelectric point (pI) is:", options: ["the pH where the amino acid has no net charge", "always exactly 7", "the pKa of pure water", "the melting point"], answer: 0, explanation: "At the pI the molecule is mostly the zwitterion; for a simple amino acid it is the average of its two pKa values." },
+  { topic: "aminoacids", question: "Alpha-helices and beta-sheets are stabilized mainly by:", options: ["backbone hydrogen bonds", "disulfide bonds", "ionic salt bridges only", "metal coordination"], answer: 0, explanation: "Secondary structure comes from H-bonding between backbone C=O and N-H groups." },
 ];
 
 const REACTIONS = [
-  // Conjugation
-  { name: "Diels-Alder", topic: "conjugation", substrate: "Conjugated diene (s-cis) + dienophile", reagents: "Heat", product: "Cyclohexene", type: "[4+2] cycloaddition", notes: "Concerted and stereospecific; endo product favored; electron-poor dienophile + electron-rich diene react fastest." },
+  // Carbohydrates
+  { name: "Glycoside formation", topic: "carbohydrates", substrate: "Monosaccharide (cyclic hemiacetal)", reagents: "ROH, H+", product: "Glycoside (acetal) + H2O", type: "Acetal formation", notes: "Locks the anomeric configuration; the product is a non-reducing sugar." },
+  { name: "Reducing-sugar test", topic: "carbohydrates", substrate: "Aldose / reducing sugar", reagents: "Tollens Ag(NH3)2+ (or Benedict Cu2+)", product: "Aldonic acid (+ Ag mirror / Cu2O)", type: "Oxidation", notes: "Only sugars with a free anomeric OH (hemiacetal) react; glycosides do not." },
 
-  // EAS
-  { name: "Aromatic halogenation", topic: "eas", substrate: "Benzene", reagents: "Br2, FeBr3 (or Cl2, FeCl3)", product: "Halobenzene", type: "EAS", notes: "Lewis acid polarizes the halogen to make the electrophile." },
-  { name: "Nitration", topic: "eas", substrate: "Benzene", reagents: "HNO3, H2SO4", product: "Nitrobenzene", type: "EAS", notes: "Electrophile is the nitronium ion, NO2+." },
-  { name: "Sulfonation", topic: "eas", substrate: "Benzene", reagents: "SO3, H2SO4 (fuming)", product: "Benzenesulfonic acid", type: "EAS", notes: "Reversible - useful as a removable blocking group." },
-  { name: "Friedel-Crafts alkylation", topic: "eas", substrate: "Benzene", reagents: "R-Cl, AlCl3", product: "Alkylbenzene", type: "EAS", notes: "Prone to carbocation rearrangement and polyalkylation; fails on deactivated rings." },
-  { name: "Friedel-Crafts acylation", topic: "eas", substrate: "Benzene", reagents: "R-COCl, AlCl3", product: "Aryl ketone", type: "EAS", notes: "No rearrangement; stops at mono-acylation (product is deactivated)." },
-  { name: "Carbonyl reduction (post-FC)", topic: "eas", substrate: "Aryl ketone", reagents: "Zn(Hg), HCl (Clemmensen) or N2H4, KOH (Wolff-Kishner)", product: "Alkylbenzene (straight chain)", type: "Reduction", notes: "Combine with acylation to install unrearranged alkyl chains." },
+  // Amino acids & proteins
+  { name: "Peptide bond formation", topic: "aminoacids", substrate: "Two amino acids", reagents: "Coupling reagent (e.g., DCC); biologically by the ribosome", product: "Dipeptide (amide bond) + H2O", type: "Condensation", notes: "Forms the planar amide linkage between -COOH and -NH2." },
+  { name: "Disulfide formation", topic: "aminoacids", substrate: "Two cysteine -SH groups", reagents: "[O] (mild oxidation)", product: "Cystine (S-S cross-link)", type: "Oxidation", notes: "Stabilizes tertiary structure; reversed by DTT or 2-mercaptoethanol." },
 
   // Carbonyl
   { name: "Grignard addition", topic: "carbonyl", substrate: "Aldehyde / ketone", reagents: "R-MgX, then H3O+", product: "2 deg / 3 deg alcohol", type: "Nucleophilic addition", notes: "Anhydrous conditions; formaldehyde gives 1 deg, CO2 gives a carboxylic acid." },
@@ -398,80 +371,42 @@ const REACTIONS = [
 
 const NOTES = [
   {
-    topic: "spectroscopy",
-    title: "Structure Determination: IR, NMR & MS",
+    topic: "carbohydrates",
+    title: "Carbohydrates",
     sections: [
-      { heading: "IR - which bonds are present", points: [
-        "C=O carbonyl: strong band ~1700-1750 cm-1 (the single most useful diagnostic).",
-        "O-H alcohol: broad ~3200-3550; carboxylic acid O-H: very broad ~2500-3300.",
-        "N-H: ~3300-3500 (two bands for primary, one for secondary).",
-        "C(triple)C / C(triple)N: ~2100-2260; sp C-H and sp2 C-H appear above 3000 cm-1.",
+      { heading: "Structure", points: [
+        "Monosaccharides are polyhydroxy aldehydes (aldoses) or ketones (ketoses).",
+        "D vs L: set by the bottom (highest-numbered) stereocenter in the Fischer projection - OH right = D (most natural sugars).",
+        "Epimers differ at exactly one stereocenter (glucose vs galactose = C4 epimers).",
       ]},
-      { heading: "1H NMR - the three readouts", points: [
-        "Chemical shift = electronic environment (deshielding shifts signals downfield).",
-        "Integration = relative number of protons.",
-        "Multiplicity = n+1 rule: n equivalent neighbors give n+1 peaks.",
-        "Useful shifts: aldehyde 9-10, aromatic 6.5-8, vinyl 4.5-6.5, H-C-O 3.3-4.5, alpha-to-C=O 2.1-2.6 ppm.",
+      { heading: "Cyclic forms", points: [
+        "An internal -OH (C5 for an aldohexose) attacks the carbonyl -> cyclic hemiacetal (6-membered pyranose; 5-membered furanose).",
+        "The anomeric carbon is the former carbonyl carbon; alpha = OH down, beta = OH up (Haworth, D-sugar).",
+        "Mutarotation: alpha and beta anomers interconvert through the open chain until equilibrium.",
       ]},
-      { heading: "Mass spec & unsaturation", points: [
-        "M+ = molecular weight; look for isotope patterns: Br (M, M+2 ~1:1), Cl (M, M+2 ~3:1).",
-        "Degrees of unsaturation = (2C + 2 + N - H - X)/2; each counts one ring or pi bond.",
+      { heading: "Reactions", points: [
+        "Glycoside formation (anomeric OH + ROH, H+) makes an acetal - locks the configuration, non-reducing.",
+        "Reducing sugars (free hemiacetal) are oxidized by Tollens/Benedict; glycosides are not.",
       ]},
     ],
   },
   {
-    topic: "conjugation",
-    title: "Conjugation, Dienes & the Diels-Alder Reaction",
+    topic: "aminoacids",
+    title: "Amino Acids & Proteins",
     sections: [
-      { heading: "Conjugation basics", points: [
-        "Overlapping p orbitals delocalize electrons and add stability (allylic cations/radicals, dienes).",
-        "More conjugation -> smaller HOMO-LUMO gap -> longer-wavelength UV-Vis absorption.",
+      { heading: "Amino acids", points: [
+        "Alpha carbon bears -NH2, -COOH, -H, and a side chain R; chiral (L / S) except glycine.",
+        "At physiological pH they are zwitterions (-COO- and -NH3+), net neutral.",
+        "Isoelectric point (pI) = pH of no net charge = average of the two pKa values (simple amino acid).",
       ]},
-      { heading: "Kinetic vs thermodynamic addition", points: [
-        "Adding HX to a conjugated diene gives 1,2 (kinetic, low temperature) and 1,4 (thermodynamic, high temperature) products.",
+      { heading: "Peptides", points: [
+        "The peptide (amide) bond joins -COOH of one residue to -NH2 of the next; planar, restricted rotation.",
+        "Written N-terminus (left) to C-terminus (right).",
       ]},
-      { heading: "Diels-Alder ([4+2])", points: [
-        "Diene (must be s-cis) + dienophile -> cyclohexene in one concerted step.",
-        "Electron-rich diene + electron-poor dienophile (EWG) react fastest.",
-        "Stereospecific (substituent geometry retained); endo product is kinetically favored.",
-      ]},
-    ],
-  },
-  {
-    topic: "aromaticity",
-    title: "Aromaticity",
-    sections: [
-      { heading: "Huckel's rule", points: [
-        "Aromatic: cyclic, planar, fully conjugated, and 4n+2 pi electrons.",
-        "Antiaromatic: same but 4n pi electrons - strongly destabilized.",
-        "Nonaromatic: not fully conjugated or not planar.",
-      ]},
-      { heading: "Heteroatom lone pairs", points: [
-        "Pyridine: N lone pair is in-plane (sp2), outside the pi system -> basic.",
-        "Pyrrole: N lone pair is IN the pi system (supplies 2 e-) -> weak base.",
-      ]},
-      { heading: "Charged rings", points: [
-        "Cyclopentadienyl anion (6 pi e-) is aromatic; tropylium cation (6 pi e-) is aromatic.",
-        "Cyclopentadienyl cation (4 pi e-) is antiaromatic.",
-      ]},
-    ],
-  },
-  {
-    topic: "eas",
-    title: "Aromatic Substitution",
-    sections: [
-      { heading: "EAS mechanism", points: [
-        "Generate electrophile -> ring attacks E+ forming a resonance-stabilized arenium ion -> lose H+ to rearomatize.",
-        "Reactions: halogenation, nitration, sulfonation, Friedel-Crafts alkylation & acylation.",
-      ]},
-      { heading: "Directing effects", points: [
-        "Activators (o/p): -NH2, -OH, -OR, -NHCOR, alkyl, aryl.",
-        "Deactivators (meta): -NO2, -CN, -SO3H, -C=O groups, -NR3+, -CF3.",
-        "Halogens: deactivating but o/p-directing.",
-      ]},
-      { heading: "Practical notes", points: [
-        "Friedel-Crafts alkylation rearranges and polyalkylates; use acylation + reduction for clean alkyl chains.",
-        "SNAr (nucleophilic aromatic substitution) needs a strong EWG ortho/para to the leaving group.",
+      { heading: "Protein structure", points: [
+        "Primary = sequence; secondary = alpha-helix / beta-sheet (backbone H-bonds).",
+        "Tertiary = 3D fold of one chain (stabilized by H-bonds, salt bridges, hydrophobic packing, disulfides).",
+        "Quaternary = assembly of multiple chains; disulfides come from cysteine -SH oxidation.",
       ]},
     ],
   },
