@@ -14,9 +14,13 @@ function saveState() {
   localStorage.setItem(STORE_KEY, JSON.stringify(state));
 }
 const state = Object.assign(
-  { planDone: {}, planPages: {}, cards: {}, quizBest: {} },
+  { planDone: {}, planPages: {}, cards: {}, quizBest: {}, srs: {}, customCards: [], customQuiz: [] },
   loadState()
 );
+// ensure newer fields exist for progress saved by older versions
+state.srs = state.srs || {};
+state.customCards = state.customCards || [];
+state.customQuiz = state.customQuiz || [];
 
 /* ---------- helpers ---------- */
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -26,7 +30,68 @@ const esc = (s) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
   );
 const topicById = (id) => TOPICS.find((t) => t.id === id);
-const topicTitle = (id) => (topicById(id) ? topicById(id).title : id);
+const EXTRA_TOPIC = { ai: "AI generated" };
+const topicTitle = (id) => (topicById(id) ? topicById(id).title : EXTRA_TOPIC[id] || id);
+
+/* ---------- text-to-speech (listenable lessons) ---------- */
+const ttsOK = typeof window !== "undefined" && "speechSynthesis" in window;
+function speak(text) {
+  if (!ttsOK) {
+    alert("Audio isn't supported in this browser.");
+    return;
+  }
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.rate = 1;
+  window.speechSynthesis.speak(u);
+}
+function stopSpeak() {
+  if (ttsOK) window.speechSynthesis.cancel();
+}
+
+/* ---------- spaced repetition (SM-2 style) ---------- */
+function addDays(iso, n) {
+  const [y, m, d] = iso.split("-").map(Number);
+  return isoOf(new Date(y, m - 1, d + n));
+}
+function allCards() {
+  return FLASHCARDS.concat(state.customCards || []);
+}
+function isDue(card) {
+  const s = state.srs[card.id];
+  return !s || s.due <= todayISO();
+}
+function dueRank(card) {
+  const s = state.srs[card.id];
+  if (!s) return 1; // brand-new cards come after anything already due
+  return s.due <= todayISO() ? 0 : 2;
+}
+function scheduleCard(card, rating) {
+  const t = todayISO();
+  const s = state.srs[card.id] || { ease: 2.5, interval: 0, reps: 0, due: t };
+  if (rating === "again") {
+    s.reps = 0;
+    s.interval = 0;
+    s.ease = Math.max(1.3, s.ease - 0.2);
+  } else if (rating === "hard") {
+    s.interval = s.reps ? Math.max(1, Math.round(s.interval * 1.2)) : 1;
+    s.ease = Math.max(1.3, s.ease - 0.15);
+    s.reps++;
+  } else if (rating === "good") {
+    s.interval = s.reps === 0 ? 1 : s.reps === 1 ? 3 : Math.round(s.interval * s.ease);
+    s.reps++;
+  } else {
+    s.interval = s.reps === 0 ? 2 : Math.round(s.interval * s.ease * 1.3);
+    s.ease += 0.15;
+    s.reps++;
+  }
+  s.due = addDays(t, s.interval);
+  state.srs[card.id] = s;
+  saveState();
+}
+function masteredCount() {
+  return Object.values(state.srs).filter((s) => s.interval >= 21).length;
+}
 
 function isoOf(d) {
   const y = d.getFullYear();
@@ -92,6 +157,7 @@ const VIEWS = {
   quiz: renderQuiz,
   reactions: renderReactions,
   notes: renderNotes,
+  ai: renderAI,
   course: renderCourse,
 };
 let current = "plan";
@@ -120,7 +186,7 @@ function renderPlan() {
   const doneCount = STUDY_DAYS.filter((d) => state.planDone[d.id]).length;
   const total = STUDY_DAYS.length;
   const pct = total ? Math.round((doneCount / total) * 100) : 0;
-  const mastered = Object.values(state.cards).filter((v) => v === "known").length;
+  const mastered = masteredCount();
   const quizScores = Object.values(state.quizBest);
   const quizAvg = quizScores.length
     ? Math.round(quizScores.reduce((a, b) => a + b, 0) / quizScores.length)
@@ -320,9 +386,9 @@ function openFlashcards(topic) {
 }
 
 function buildDeck() {
-  fcDeck = FLASHCARDS.filter((c) => fcTopic === "all" || c.topic === fcTopic);
-  // study not-yet-known first
-  fcDeck.sort((a, b) => (state.cards[a.id] === "known" ? 1 : 0) - (state.cards[b.id] === "known" ? 1 : 0));
+  const pool = allCards().filter((c) => fcTopic === "all" || c.topic === fcTopic);
+  // due cards first, then brand-new, then cards not yet due
+  fcDeck = pool.slice().sort((a, b) => dueRank(a) - dueRank(b));
   fcPos = 0;
   fcFlipped = false;
 }
@@ -330,15 +396,20 @@ function buildDeck() {
 function renderFlashcards() {
   buildDeck();
   const app = $("#app");
-  const opts = ['<option value="all">All topics</option>']
-    .concat(TOPICS.map((t) => `<option value="${t.id}">${esc(t.title)}</option>`))
-    .join("");
+  const hasAI = (state.customCards || []).length > 0;
+  const opts =
+    ['<option value="all">All topics</option>']
+      .concat(TOPICS.map((t) => `<option value="${t.id}">${esc(t.title)}</option>`))
+      .concat(hasAI ? ['<option value="ai">AI generated</option>'] : [])
+      .join("");
+  const dueNow = fcDeck.filter(isDue).length;
   app.innerHTML = `
-    <div class="view-head"><h1>Flashcards</h1><p>Tap a card to flip. Mark each one so the app knows what to drill.</p></div>
+    <div class="view-head"><h1>Flashcards</h1><p>Tap to flip, then rate yourself. Spaced repetition schedules each card so you review it right before you'd forget.</p></div>
     <div class="row" style="margin-bottom:8px">
       <label class="field">Topic
         <select id="fcTopic">${opts}</select>
       </label>
+      <span class="badge ${dueNow ? "" : "good"}">${dueNow} due</span>
       <span class="spacer"></span>
       <button class="btn small" id="fcShuffle">Shuffle</button>
       <button class="btn small ghost" id="fcReset">Reset progress</button>
@@ -360,11 +431,12 @@ function renderFlashcards() {
     drawCard();
   });
   $("#fcReset").addEventListener("click", () => {
-    if (!confirm("Reset flashcard progress for all topics?")) return;
+    if (!confirm("Reset spaced-repetition progress for all flashcards?")) return;
+    state.srs = {};
     state.cards = {};
     saveState();
     buildDeck();
-    drawCard();
+    renderFlashcards();
   });
   drawCard();
 }
@@ -376,11 +448,11 @@ function drawCard() {
     return;
   }
   if (fcPos >= fcDeck.length) {
-    const known = fcDeck.filter((c) => state.cards[c.id] === "known").length;
+    const mastered = fcDeck.filter((c) => (state.srs[c.id] || {}).interval >= 21).length;
     area.innerHTML = `
       <div class="card" style="text-align:center">
         <h2>Deck complete</h2>
-        <p class="muted">${known} of ${fcDeck.length} marked as known.</p>
+        <p class="muted">${mastered} of ${fcDeck.length} are well-learned (3+ week interval). Come back when more are due.</p>
         <button class="btn primary" id="fcAgain">Go through again</button>
       </div>`;
     $("#fcAgain").addEventListener("click", () => {
@@ -390,7 +462,12 @@ function drawCard() {
     return;
   }
   const card = fcDeck[fcPos];
-  const status = state.cards[card.id];
+  const s = state.srs[card.id];
+  const statusTxt = s
+    ? s.interval >= 21
+      ? "well-learned"
+      : "due " + fmtDate(s.due)
+    : "new card";
   area.innerHTML = `
     <div class="row" style="justify-content:space-between">
       <span class="muted">Card ${fcPos + 1} of ${fcDeck.length}</span>
@@ -411,23 +488,27 @@ function drawCard() {
       </div>
     </div>
     <div class="row" style="justify-content:center">
-      <button class="btn" id="fcLearning">Still learning</button>
-      <button class="btn good" id="fcKnown">Got it</button>
+      <button class="btn bad small" data-rate="again">Again</button>
+      <button class="btn small" data-rate="hard">Hard</button>
+      <button class="btn good small" data-rate="good">Good</button>
+      <button class="btn small" data-rate="easy">Easy</button>
     </div>
     <div class="row" style="justify-content:center;margin-top:8px">
-      <span class="muted">${status ? "Marked: " + (status === "known" ? "got it" : "still learning") : "Not marked yet"}</span>
+      ${ttsOK ? '<button class="btn small ghost" id="fcListen">Listen</button>' : ""}
+      <span class="muted">${esc(statusTxt)}</span>
     </div>`;
   $("#fcCard").addEventListener("click", () => {
     fcFlipped = !fcFlipped;
     $("#fcCard").classList.toggle("flipped", fcFlipped);
   });
-  $("#fcLearning").addEventListener("click", () => mark(card, "learning"));
-  $("#fcKnown").addEventListener("click", () => mark(card, "known"));
+  $$("[data-rate]").forEach((b) => b.addEventListener("click", () => rate(card, b.dataset.rate)));
+  const listen = $("#fcListen");
+  if (listen) listen.addEventListener("click", () => speak(card.front + ". " + card.back));
 }
 
-function mark(card, status) {
-  state.cards[card.id] = status;
-  saveState();
+function rate(card, rating) {
+  stopSpeak();
+  scheduleCard(card, rating);
   fcPos++;
   fcFlipped = false;
   drawCard();
@@ -450,9 +531,12 @@ function openQuiz(topic) {
 
 function renderQuiz() {
   const app = $("#app");
-  const opts = ['<option value="all">Mixed (all topics)</option>']
-    .concat(TOPICS.map((t) => `<option value="${t.id}">${esc(t.title)}</option>`))
-    .join("");
+  const hasAI = (state.customQuiz || []).length > 0;
+  const opts =
+    ['<option value="all">Mixed (all topics)</option>']
+      .concat(TOPICS.map((t) => `<option value="${t.id}">${esc(t.title)}</option>`))
+      .concat(hasAI ? ['<option value="ai">AI generated</option>'] : [])
+      .join("");
   app.innerHTML = `
     <div class="view-head"><h1>Quiz</h1><p>Multiple choice with instant feedback. Your best score per topic is saved.</p></div>
     <div class="card" id="quizCard">
@@ -478,7 +562,8 @@ function shuffled(arr) {
 }
 
 function startQuiz() {
-  const pool = QUIZ.filter((q) => quizTopic === "all" || q.topic === quizTopic);
+  const fullPool = QUIZ.concat(state.customQuiz || []);
+  const pool = fullPool.filter((q) => quizTopic === "all" || q.topic === quizTopic);
   quizList = shuffled(pool).slice(0, 10).map((q) => {
     const correct = q.options[q.answer];
     const options = shuffled(q.options);
@@ -622,12 +707,22 @@ function rxnCard(r) {
 /* =====================================================================
    NOTES
    ===================================================================== */
+function noteToText(n) {
+  return (
+    n.title +
+    ". " +
+    n.sections.map((s) => s.heading + ". " + s.points.join(". ")).join(". ")
+  );
+}
+
 function renderNotes() {
   const app = $("#app");
   app.innerHTML = `
-    <div class="view-head"><h1>Topic notes</h1><p>Quick summaries to review before problem sets and exams.</p></div>
+    <div class="view-head"><h1>Topic notes</h1><p>Quick summaries to review before problem sets and exams.${
+      ttsOK ? " Tap Listen to hear one read aloud." : ""
+    }</p></div>
     <div id="notesList"></div>`;
-  $("#notesList").innerHTML = NOTES.map((n) => {
+  $("#notesList").innerHTML = NOTES.map((n, idx) => {
     const sections = n.sections
       .map(
         (s) => `
@@ -642,9 +737,16 @@ function renderNotes() {
         <summary><span class="wk-title">${esc(n.title)}</span><span class="wk-meta">${esc(
       topicTitle(n.topic)
     )}</span></summary>
-        <div style="padding:0 16px 16px">${sections}</div>
+        <div style="padding:0 16px 16px">
+          ${ttsOK ? `<div class="row" style="margin-bottom:6px"><button class="btn small ghost" data-listen="${idx}">Listen</button><button class="btn small ghost" data-stop="1">Stop</button></div>` : ""}
+          ${sections}
+        </div>
       </details>`;
   }).join("");
+  $$("[data-listen]").forEach((b) =>
+    b.addEventListener("click", () => speak(noteToText(NOTES[+b.dataset.listen])))
+  );
+  $$("[data-stop]").forEach((b) => b.addEventListener("click", stopSpeak));
 }
 
 /* =====================================================================
@@ -710,6 +812,207 @@ function renderCourse() {
         ${COURSE.policies.map((p) => `<li style="margin:6px 0">${esc(p)}</li>`).join("")}
       </ul>
     </div>`;
+}
+
+/* =====================================================================
+   AI TOOLS
+   ===================================================================== */
+let aiEditingKey = false;
+
+async function aiGetSource() {
+  const fileEl = $("#aiFile");
+  const text = (($("#aiText") || {}).value || "").trim();
+  if (fileEl && fileEl.files && fileEl.files[0]) {
+    const f = fileEl.files[0];
+    if (f.type !== "application/pdf" && !/\.pdf$/i.test(f.name))
+      throw new Error("Please choose a PDF file, or paste text instead.");
+    return { type: "pdf", data: await fileToBase64(f) };
+  }
+  if (text) return { type: "text", text };
+  throw new Error("Paste some text or choose a PDF first.");
+}
+
+function renderAI() {
+  const app = $("#app");
+  const cfg = loadAICfg();
+
+  if (!cfg.apiKey || aiEditingKey) {
+    const modelOpts = AI_MODELS.map(
+      (m) => `<option value="${m.id}" ${cfg.model === m.id ? "selected" : ""}>${esc(m.label)}</option>`
+    ).join("");
+    app.innerHTML = `
+      <div class="view-head"><h1>AI Tools</h1><p>Turn any chapter, your notes, or a PDF into flashcards, a quiz, or a summary.</p></div>
+      <div class="card">
+        <h3 style="margin-top:0">Connect your Anthropic API key</h3>
+        <p class="muted">These features call Claude directly from your browser. Get a key at console.anthropic.com.</p>
+        <div class="explain" style="background:rgba(251,113,133,0.10);border-color:rgba(251,113,133,0.35)">
+          <strong>Heads up:</strong> your key is stored only in this browser and sent straight to Anthropic. Use this on your own device only, and set a spending limit on the key.
+        </div>
+        <label class="field" style="margin-top:12px">API key
+          <input type="text" id="aiKey" placeholder="sk-ant-..." value="${esc(cfg.apiKey || "")}" autocomplete="off" />
+        </label>
+        <label class="field" style="margin-top:10px">Model
+          <select id="aiModel">${modelOpts}</select>
+        </label>
+        <div class="row" style="margin-top:14px">
+          <button class="btn primary" id="aiSave">Save</button>
+          ${cfg.apiKey ? '<button class="btn ghost" id="aiCancel">Cancel</button>' : ""}
+        </div>
+      </div>`;
+    $("#aiSave").addEventListener("click", () => {
+      const apiKey = $("#aiKey").value.trim();
+      const model = $("#aiModel").value;
+      if (!apiKey) {
+        alert("Paste your API key first.");
+        return;
+      }
+      saveAICfg({ apiKey, model });
+      aiEditingKey = false;
+      renderAI();
+    });
+    const cancel = $("#aiCancel");
+    if (cancel)
+      cancel.addEventListener("click", () => {
+        aiEditingKey = false;
+        renderAI();
+      });
+    return;
+  }
+
+  const modelLabel = (AI_MODELS.find((m) => m.id === cfg.model) || AI_MODELS[0]).label;
+  app.innerHTML = `
+    <div class="view-head"><h1>AI Tools</h1><p>Paste a chapter or your notes (or upload a PDF), then generate study material from it.</p></div>
+    <div class="card" style="margin-bottom:14px">
+      <label class="field">Source material
+        <textarea id="aiText" rows="7" placeholder="Paste textbook text, your notes, or a problem set here..." style="resize:vertical"></textarea>
+      </label>
+      <div class="row" style="margin-top:10px">
+        <label class="field" style="flex:1">...or upload a PDF (a chapter/section works best)
+          <input type="file" id="aiFile" accept="application/pdf,.pdf" />
+        </label>
+        <label class="field" style="width:110px">How many
+          <input type="text" id="aiCount" value="12" inputmode="numeric" />
+        </label>
+      </div>
+      <div class="row" style="margin-top:14px">
+        <button class="btn primary" id="aiCards">Generate flashcards</button>
+        <button class="btn primary" id="aiQuiz">Generate quiz</button>
+        <button class="btn" id="aiSum">Summarize</button>
+        <span class="spacer"></span>
+        <button class="btn small ghost" id="aiSettings">${esc(modelLabel)} &middot; change</button>
+      </div>
+    </div>
+    <div id="aiOut"></div>`;
+
+  $("#aiSettings").addEventListener("click", () => {
+    aiEditingKey = true;
+    renderAI();
+  });
+
+  const out = $("#aiOut");
+  const buttons = ["aiCards", "aiQuiz", "aiSum"];
+  const setBusy = (busy, msg) => {
+    buttons.forEach((id) => ($("#" + id).disabled = busy));
+    if (busy) out.innerHTML = `<div class="card"><span class="muted">${esc(msg)}</span></div>`;
+  };
+  const count = () => Math.max(1, Math.min(30, parseInt($("#aiCount").value, 10) || 12));
+
+  $("#aiCards").addEventListener("click", async () => {
+    try {
+      const source = await aiGetSource();
+      setBusy(true, "Generating flashcards from your material...");
+      const cards = await aiFlashcards(source, count());
+      if (!cards.length) throw new Error("No cards came back. Try different text.");
+      const base = "ai" + Date.now();
+      const added = cards
+        .filter((c) => c.front && c.back)
+        .map((c, i) => ({ id: base + "_" + i, topic: "ai", front: c.front, back: c.back }));
+      state.customCards = (state.customCards || []).concat(added);
+      saveState();
+      out.innerHTML = `
+        <div class="card">
+          <h3 style="margin-top:0">Added ${added.length} flashcards</h3>
+          <p class="muted">They're in your "AI generated" deck and scheduled with spaced repetition.</p>
+          <div class="row"><button class="btn primary" id="aiGoCards">Study them now</button></div>
+        </div>
+        <div class="grid" style="margin-top:12px">
+          ${added
+            .map(
+              (c) =>
+                `<div class="rxn"><div style="font-weight:600">${esc(c.front)}</div><div class="notes">${esc(
+                  c.back
+                )}</div></div>`
+            )
+            .join("")}
+        </div>`;
+      $("#aiGoCards").addEventListener("click", () => openFlashcards("ai"));
+    } catch (e) {
+      out.innerHTML = `<div class="card"><span class="badge exam">Error</span> ${esc(e.message)}</div>`;
+    } finally {
+      buttons.forEach((id) => ($("#" + id).disabled = false));
+    }
+  });
+
+  $("#aiQuiz").addEventListener("click", async () => {
+    try {
+      const source = await aiGetSource();
+      setBusy(true, "Writing quiz questions from your material...");
+      const qs = await aiQuiz(source, count());
+      const added = qs
+        .filter((q) => Array.isArray(q.options) && q.options.length >= 2)
+        .map((q) => ({
+          topic: "ai",
+          question: q.question,
+          options: q.options,
+          answer: Math.max(0, Math.min(q.options.length - 1, parseInt(q.answer_index, 10) || 0)),
+          explanation: q.explanation || "",
+        }));
+      if (!added.length) throw new Error("No questions came back. Try different text.");
+      state.customQuiz = (state.customQuiz || []).concat(added);
+      saveState();
+      out.innerHTML = `
+        <div class="card">
+          <h3 style="margin-top:0">Added ${added.length} quiz questions</h3>
+          <p class="muted">They're in the quiz under the "AI generated" topic.</p>
+          <div class="row"><button class="btn primary" id="aiGoQuiz">Take the quiz</button></div>
+        </div>`;
+      $("#aiGoQuiz").addEventListener("click", () => openQuiz("ai"));
+    } catch (e) {
+      out.innerHTML = `<div class="card"><span class="badge exam">Error</span> ${esc(e.message)}</div>`;
+    } finally {
+      buttons.forEach((id) => ($("#" + id).disabled = false));
+    }
+  });
+
+  $("#aiSum").addEventListener("click", async () => {
+    try {
+      const source = await aiGetSource();
+      setBusy(true, "Summarizing your material...");
+      const res = await aiSummary(source);
+      const points = (res.key_points || []).map((p) => `<li>${esc(p)}</li>`).join("");
+      out.innerHTML = `
+        <div class="card">
+          <div class="row"><h3 style="margin:0 0 8px">Summary</h3><span class="spacer"></span>${
+            ttsOK
+              ? '<button class="btn small ghost" id="aiListen">Listen</button><button class="btn small ghost" id="aiStop">Stop</button>'
+              : ""
+          }</div>
+          <p>${esc(res.summary || "")}</p>
+          ${points ? `<h3>Key points</h3><ul>${points}</ul>` : ""}
+        </div>`;
+      const listen = $("#aiListen");
+      if (listen)
+        listen.addEventListener("click", () =>
+          speak((res.summary || "") + ". Key points. " + (res.key_points || []).join(". "))
+        );
+      const stop = $("#aiStop");
+      if (stop) stop.addEventListener("click", stopSpeak);
+    } catch (e) {
+      out.innerHTML = `<div class="card"><span class="badge exam">Error</span> ${esc(e.message)}</div>`;
+    } finally {
+      buttons.forEach((id) => ($("#" + id).disabled = false));
+    }
+  });
 }
 
 /* ---------- boot ---------- */

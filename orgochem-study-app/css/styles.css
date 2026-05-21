@@ -112,7 +112,7 @@ h1, h2, h3 { line-height: 1.25; }
 .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .spacer { flex: 1; }
 
-select, input[type="text"], input[type="search"] {
+select, input[type="text"], input[type="search"], input[type="file"], textarea {
   appearance: none;
   background: var(--bg-soft);
   color: var(--text);
@@ -120,7 +120,10 @@ select, input[type="text"], input[type="search"] {
   border-radius: 10px;
   padding: 9px 12px;
   font: inherit;
+  width: 100%;
 }
+textarea { line-height: 1.45; }
+input[type="file"] { padding: 8px; }
 label.field { display: flex; flex-direction: column; gap: 6px; font-size: 0.85rem; color: var(--muted); }
 
 .badge {
