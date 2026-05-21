@@ -30,7 +30,7 @@ const esc = (s) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
   );
 const topicById = (id) => TOPICS.find((t) => t.id === id);
-const EXTRA_TOPIC = { ai: "AI generated" };
+const EXTRA_TOPIC = { ai: "AI generated", all: "All topics" };
 const topicTitle = (id) => (topicById(id) ? topicById(id).title : EXTRA_TOPIC[id] || id);
 
 /* ---------- text-to-speech (listenable lessons) ---------- */
