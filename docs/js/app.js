@@ -268,7 +268,7 @@ function renderPlan() {
           pages ? esc(pages) : '<span class="muted">practice / review - no new reading</span>'
         }</div>
         <div class="row" style="margin-top:14px">
-          ${firstPageNum(pages) ? `<button class="btn primary" data-read="${firstPageNum(pages)}">Read pages</button>` : ""}
+          ${firstPageNum(pages) ? `<button class="btn primary" data-read="${firstPageNum(pages)}" data-read-ch="${dayChapterNum(next) || ""}">Read pages</button>` : ""}
           <button class="btn good" data-done="${next.id}">Mark done</button>
           <button class="btn" data-study-fc="${next.topic}">Flashcards</button>
           <button class="btn" data-study-quiz="${next.topic}">Quiz</button>
@@ -344,7 +344,7 @@ function wirePlan() {
   $$("[data-read]").forEach((b) =>
     b.addEventListener("click", (e) => {
       e.stopPropagation();
-      openReader(parseInt(b.dataset.read, 10));
+      openReader(parseInt(b.dataset.read, 10), "book", b.dataset.readCh || null);
     })
   );
 
@@ -400,11 +400,14 @@ function toggleDayDetail(row) {
   row.after(panel);
 
   const readBtn = $("[data-read]", panel);
-  if (readBtn) readBtn.addEventListener("click", () => openReader(parseInt(readBtn.dataset.read, 10)));
+  if (readBtn) readBtn.addEventListener("click", () => openReader(parseInt(readBtn.dataset.read, 10), "book", dayChapterNum(day) || null));
   const probBtn = $("[data-prob]", panel);
-  if (probBtn) probBtn.addEventListener("click", () => openReader(parseInt(probBtn.dataset.prob, 10), "book"));
+  if (probBtn) probBtn.addEventListener("click", () => openReader(parseInt(probBtn.dataset.prob, 10), "book", dayChapterNum(day) || null));
   const guideBtn = $("[data-guide-ch]", panel);
-  if (guideBtn) guideBtn.addEventListener("click", () => openGuideForChapter(guideBtn.dataset.guideCh));
+  if (guideBtn)
+    guideBtn.addEventListener("click", () =>
+      openGuideForChapter(guideBtn.dataset.guideCh, probBtn ? parseInt(probBtn.dataset.prob, 10) : undefined)
+    );
   const scanBtn = $("[data-scan]", panel);
   if (scanBtn)
     scanBtn.addEventListener("click", async () => {

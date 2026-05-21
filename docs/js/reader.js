@@ -86,6 +86,7 @@ let readerWhich = "book";
 let readerPrinted = 1;
 let readerZoom = 1;
 let readerChapter = null; // set when opened for a chapter's solutions
+const readerPages = { book: null, guide: null }; // remembered page per document
 
 function ensureReaderEl() {
   let el = document.getElementById("reader");
@@ -96,6 +97,7 @@ function ensureReaderEl() {
   el.innerHTML = `
     <div class="reader-bar">
       <strong id="readerTitle">Textbook</strong>
+      <button class="btn small primary" id="readerSwitch">See solutions</button>
       <span class="spacer"></span>
       <button class="btn small" id="readerZoomOut">A-</button>
       <button class="btn small" id="readerZoomIn">A+</button>
@@ -110,6 +112,7 @@ function ensureReaderEl() {
     <div class="reader-foot reader-tools" id="readerTools"></div>`;
   document.body.appendChild(el);
   $("#readerClose", el).addEventListener("click", closeReader);
+  $("#readerSwitch", el).addEventListener("click", readerSwitch);
   $("#readerZoomIn", el).addEventListener("click", () => {
     readerZoom = Math.min(2.5, readerZoom + 0.25);
     renderReaderPage();
@@ -134,6 +137,8 @@ function updateReaderLabel() {
   if (lbl) lbl.textContent = (readerWhich === "guide" ? "page " : "p. ") + readerPrinted;
   const title = document.getElementById("readerTitle");
   if (title) title.textContent = readerWhich === "guide" ? "Solutions guide" : "Textbook";
+  const sw = document.getElementById("readerSwitch");
+  if (sw) sw.textContent = readerWhich === "guide" ? "Back to problems" : "See solutions";
   const tools = document.getElementById("readerTools");
   if (!tools) return;
   const pinBtn =
@@ -218,11 +223,11 @@ async function renderReaderPage() {
     showReaderLoad(readerWhich);
     return;
   }
-  if (readerWhich === "guide") {
-    const c = loadBookCfg();
-    c.lastGuidePage = readerPrinted;
-    saveBookCfg(c);
-  }
+  readerPages[readerWhich] = readerPrinted;
+  const cfgP = loadBookCfg();
+  if (readerWhich === "guide") cfgP.lastGuidePage = readerPrinted;
+  else cfgP.lastBookPage = readerPrinted;
+  saveBookCfg(cfgP);
   const pdfPage = readerPrinted + docOffset(readerWhich);
   if (pdfPage < 1 || pdfPage > doc.numPages) {
     body.innerHTML = `<div class="empty">Page ${readerPrinted} is outside this PDF. Use Go or the nudge buttons.</div>`;
@@ -270,12 +275,29 @@ async function openReader(printedStart, which, chapter) {
   renderReaderPage();
 }
 
-/* Open the solutions guide for a chapter, jumping to its pinned page if set. */
-function openGuideForChapter(ch) {
+/* Open the solutions guide for a chapter, jumping to its pinned page if set.
+   problemsPage seeds the textbook side so "Back to problems" lands sensibly. */
+function openGuideForChapter(ch, problemsPage) {
+  if (problemsPage && readerPages.book == null) readerPages.book = problemsPage;
   const c = loadBookCfg();
   const pinned = (c.guidePages || {})[ch];
   const page = pinned || c.lastGuidePage || 1;
   openReader(page, "guide", ch);
+}
+
+/* Flip between the textbook (problems) and the guide (solutions) in place,
+   remembering the page you were on in each. */
+function readerSwitch() {
+  readerPages[readerWhich] = readerPrinted;
+  const target = readerWhich === "book" ? "guide" : "book";
+  let next = readerPages[target];
+  if (next == null) {
+    const c = loadBookCfg();
+    if (target === "guide")
+      next = (readerChapter && (c.guidePages || {})[readerChapter]) || c.lastGuidePage || 1;
+    else next = c.lastBookPage || 1;
+  }
+  openReader(next, target, readerChapter);
 }
 
 /* Scan the loaded textbook for boxed PROBLEM labels on a printed page range.
