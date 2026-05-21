@@ -56,7 +56,9 @@ function buildSchedule() {
     for (let d = 0; d < 7; d++) {
       const date = new Date(sy, sm - 1, sd + (wk.week - 1) * 7 + d);
       const iso = isoOf(date);
-      const taskRaw = wk.days[d] || "";
+      const dd = wk.days[d] || "";
+      const taskRaw = typeof dd === "string" ? dd : dd.task || "";
+      const pagesRaw = typeof dd === "string" ? "" : dd.pages || "";
       const exam = examByDate[iso];
       days.push({
         id: iso,
@@ -67,6 +69,7 @@ function buildSchedule() {
         topic: wk.topic,
         chapter: wk.chapter,
         task: exam ? `${exam.name} - ${exam.time}, ${exam.location}` : taskRaw,
+        pages: exam ? "" : pagesRaw,
         type: exam ? "exam" : taskRaw ? "study" : "off",
         exam: exam || null,
       });
@@ -149,14 +152,14 @@ function renderPlan() {
   `;
 
   if (next) {
-    const pages = state.planPages[next.id];
+    const pages = state.planPages[next.id] || next.pages;
     html += `
       <div class="card next-card" style="margin-bottom:18px">
         <div class="eyebrow">Study next</div>
         <h2>${fmtDate(next.id)} - Week ${next.week}</h2>
         <div class="reading">${esc(next.task)}</div>
         <div class="pages-line">Pages: ${
-          pages ? esc(pages) : '<span class="muted">not set yet - open the day to add them</span>'
+          pages ? esc(pages) : '<span class="muted">practice / review - no new reading</span>'
         }</div>
         <div class="row" style="margin-top:14px">
           <button class="btn good" data-done="${next.id}">Mark done</button>
@@ -186,9 +189,10 @@ function renderWeek(w, open, tISO) {
       else if (d.type === "study")
         right = `<div class="check">${isDone ? "&#10003;" : ""}</div>`;
       const todayBadge = isToday ? ` <span class="badge today">Today</span>` : "";
+      const pg = state.planPages[d.id] || d.pages;
       const sub =
         d.type === "study"
-          ? `<div class="sub">${esc(topicTitle(d.topic))}${todayBadge}</div>`
+          ? `<div class="sub">${esc(topicTitle(d.topic))}${pg ? " &middot; " + esc(pg) : ""}${todayBadge}</div>`
           : d.type === "exam"
           ? `<div class="sub">${todayBadge || "&nbsp;"}</div>`
           : "";
@@ -250,7 +254,7 @@ function toggleDayDetail(row) {
   const id = row.dataset.day;
   const day = ALL_DAYS.find((d) => d.id === id);
   const isDone = !!state.planDone[id];
-  const pages = state.planPages[id] || "";
+  const pages = state.planPages[id] || day.pages || "";
   const panel = document.createElement("div");
   panel.className = "day-detail";
 
