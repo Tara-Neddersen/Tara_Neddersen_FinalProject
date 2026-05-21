@@ -79,6 +79,7 @@ async function hasBook() {
 
 /* ---------- reader overlay ---------- */
 let readerPrinted = 1;
+let readerZoom = 1;
 
 function ensureReaderEl() {
   let el = document.getElementById("reader");
@@ -90,6 +91,8 @@ function ensureReaderEl() {
     <div class="reader-bar">
       <strong id="readerTitle">Textbook</strong>
       <span class="spacer"></span>
+      <button class="btn small" id="readerZoomOut">A-</button>
+      <button class="btn small" id="readerZoomIn">A+</button>
       <button class="btn small ghost" id="readerClose">Close</button>
     </div>
     <div class="reader-body" id="readerBody"></div>
@@ -101,6 +104,14 @@ function ensureReaderEl() {
     <div class="reader-foot" id="readerTools"></div>`;
   document.body.appendChild(el);
   $("#readerClose", el).addEventListener("click", closeReader);
+  $("#readerZoomIn", el).addEventListener("click", () => {
+    readerZoom = Math.min(2.5, readerZoom + 0.25);
+    renderReaderPage();
+  });
+  $("#readerZoomOut", el).addEventListener("click", () => {
+    readerZoom = Math.max(0.6, readerZoom - 0.25);
+    renderReaderPage();
+  });
   $("#readerPrev", el).addEventListener("click", () => {
     readerPrinted = Math.max(1, readerPrinted - 1);
     renderReaderPage();
@@ -186,17 +197,27 @@ async function renderReaderPage() {
   }
   const page = await doc.getPage(pdfPage);
   const vp1 = page.getViewport({ scale: 1 });
-  const maxW = Math.min((window.innerWidth || 800) - 20, 900);
-  const scale = maxW / vp1.width;
+  // CSS width to display the page at, then render at device pixel density so
+  // text is crisp on high-DPI phone screens. Zoom widens it (and scrolls).
+  const avail = (body.clientWidth || window.innerWidth || 800) - 24;
+  const cssW = Math.max(280, avail * readerZoom);
+  const scale = cssW / vp1.width;
   const vp = page.getViewport({ scale });
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
   let canvas = document.getElementById("readerCanvas");
   if (!canvas) {
     body.innerHTML = '<canvas id="readerCanvas"></canvas>';
     canvas = document.getElementById("readerCanvas");
   }
-  canvas.width = vp.width;
-  canvas.height = vp.height;
-  await page.render({ canvasContext: canvas.getContext("2d"), viewport: vp }).promise;
+  canvas.width = Math.floor(vp.width * dpr);
+  canvas.height = Math.floor(vp.height * dpr);
+  canvas.style.width = Math.floor(vp.width) + "px";
+  canvas.style.height = Math.floor(vp.height) + "px";
+  await page.render({
+    canvasContext: canvas.getContext("2d"),
+    viewport: vp,
+    transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : undefined,
+  }).promise;
   updateReaderLabel();
 }
 

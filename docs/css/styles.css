@@ -294,13 +294,10 @@ details.week[open] > summary { border-bottom: 1px solid var(--line); }
 .reader-body {
   flex: 1;
   overflow: auto;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
   padding: 12px;
   -webkit-overflow-scrolling: touch;
 }
-.reader-body canvas { max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 6px 24px rgba(0,0,0,0.5); background: #fff; }
+.reader-body canvas { display: block; margin: 0 auto; border-radius: 8px; box-shadow: 0 6px 24px rgba(0,0,0,0.5); background: #fff; }
 .reader-page { font-weight: 700; min-width: 64px; text-align: center; }
 .reader-load { max-width: 460px; margin: 24px auto; text-align: center; }
 .reader-load h3 { margin: 0 0 6px; }
