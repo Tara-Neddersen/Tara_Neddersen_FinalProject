@@ -124,6 +124,7 @@ function buildSchedule() {
       const dd = wk.days[d] || "";
       const taskRaw = typeof dd === "string" ? dd : dd.task || "";
       const pagesRaw = typeof dd === "string" ? "" : dd.pages || "";
+      const chRaw = typeof dd === "string" ? "" : dd.ch || "";
       const exam = examByDate[iso];
       days.push({
         id: iso,
@@ -132,7 +133,7 @@ function buildSchedule() {
         dnum: date.getDate(),
         week: wk.week,
         topic: wk.topic,
-        chapter: wk.chapter,
+        chapter: chRaw || wk.chapter,
         task: exam ? `${exam.name} - ${exam.time}, ${exam.location}` : taskRaw,
         pages: exam ? "" : pagesRaw,
         type: exam ? "exam" : taskRaw ? "study" : "off",
